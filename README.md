@@ -1,56 +1,103 @@
-# Welcome to your Expo app 👋
+# Barbería App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicación móvil para la gestión integral de una barbería, incluyendo reservas, servicios,
+disponibilidad, clientes, barberos, pagos, notificaciones y administración.
 
-## Get started
+## Estado actual
 
-1. Install dependencies
+El proyecto se encuentra en fase de cimentación arquitectónica. Las funcionalidades del negocio y
+la integración con el backend se implementarán de forma progresiva.
 
-   ```bash
-   npm install
-   ```
+## Stack
 
-2. Start the app
+- Expo SDK 57
+- React Native
+- Expo Router
+- TypeScript strict
+- Supabase como backend planificado
+- Android e iOS como plataformas principales
 
-   ```bash
-   npx expo start
-   ```
+## Arquitectura
 
-In the output, you'll find options to open the app in a
+El proyecto utilizará una arquitectura feature-first para mantener cada capacidad del negocio
+cohesionada y permitir que la aplicación crezca sin mezclar responsabilidades.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```text
+src/
+├── app/
+├── features/
+├── shared/
+├── infrastructure/
+├── config/
+└── theme/
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+- `app/`: rutas, layouts y composición de navegación con Expo Router.
+- `features/`: funcionalidades organizadas por dominio de negocio.
+- `shared/`: componentes, hooks, tipos y utilidades realmente reutilizables.
+- `infrastructure/`: integraciones con servicios externos y detalles técnicos.
+- `config/`: configuración central de la aplicación y del entorno.
+- `theme/`: tokens visuales y soporte de temas.
 
-### Other setup steps
+## Requisitos
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+- Node.js compatible con Expo SDK 57
+- npm
 
-## Learn more
+## Instalación
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm install
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Desarrollo
 
-## Join the community
+```bash
+npm start
+npm run android
+npm run ios
+npm run web
+```
 
-Join our community of developers creating universal apps.
+Android e iOS son los objetivos principales. El soporte web es secundario y se desarrollará cuando
+una funcionalidad lo requiera.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Calidad
+
+```bash
+npm run lint
+npm run lint:fix
+npm run typecheck
+npm run format
+npm run format:check
+npm run check
+```
+
+`npm run check` ejecuta la verificación general de lint, tipos y formato antes de considerar un
+cambio terminado.
+
+## Organización del desarrollo
+
+- Utilizar una rama Git por tarea.
+- Mantener cambios pequeños y enfocados.
+- Revisar y verificar los cambios antes de cada commit.
+- `AGENTS.md` contiene las reglas de ingeniería del proyecto.
+- `.agents/skills` contiene las Skills locales utilizadas por Codex.
+
+## Roadmap
+
+- Arquitectura base
+- Supabase
+- Autenticación y roles
+- Catálogo
+- Horarios y disponibilidad
+- Reservas
+- Pagos
+- Administración
+- Notificaciones
+- Testing E2E
+- IA
+
+## Licencia
+
+Actualmente, el proyecto es personal y no tiene una licencia pública definida.
