@@ -1,0 +1,20 @@
+---
+description: Baseline conventions for Clean Code plugin — TypeScript/Node.js review and cleanup
+alwaysApply: true
+---
+
+# Clean Code — baseline conventions
+
+When editing TypeScript/Node.js in projects using this plugin:
+
+- **Early returns**: Use guard clauses first; avoid deep nesting for happy paths.
+- **Single responsibility**: One function = one job; one file = one cohesive concern.
+- **Coherence over length**: No arbitrary line limits — a longer file is fine if it stays one concern.
+- **Naming**: Verb-first for actions (`getUser`), nouns for data (`activeUsers`), prefixed booleans (`isReady`).
+- **Comments**: On non-trivial exports — purpose, rationale, non-obvious decisions. Never restate the code line-by-line.
+- **Imports**: Remove unused imports; do not swap `import` for `require()` without a reason.
+- **Errors**: Do not swallow errors or return fake defaults without explicit product intent; flag uncertainty with `// REVIEW:`.
+- **Exports**: Do not remove or rename exported symbols during “cleanup” without confirming callers.
+- **Delegation**: Parents orchestrate; domain logic belongs in the right layer — do not duplicate subservices in parents.
+
+Use the plugin commands `/review`, `/slop`, and `/cleanup` for structured review, quick diagnosis, or mechanical cleanup per `SKILL.md` and `skills/*/SKILL.md`.
