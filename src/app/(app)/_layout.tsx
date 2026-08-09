@@ -14,7 +14,9 @@ export default function AppLayout() {
         headerTintColor: theme.text,
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Mi perfil' }} />
+      <Stack.Screen name="index" options={{ title: 'Inicio' }} />
+      <Stack.Screen name="profile" options={{ title: 'Mi perfil' }} />
+      <Stack.Screen name="barbershops" options={{ headerShown: false }} />
     </Stack>
   );
 }

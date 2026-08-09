@@ -1,5 +1,5 @@
-import { ProfileHomeScreen } from '@/features/profile/components/profile-home-screen';
+import { AuthenticatedHomeScreen } from '@/features/home/components/authenticated-home-screen';
 
 export default function HomeRoute() {
-  return <ProfileHomeScreen />;
+  return <AuthenticatedHomeScreen />;
 }
