@@ -23,6 +23,7 @@ export default function BarbershopsLayout() {
         name="[barbershopId]/payment-settings"
         options={{ title: 'Configuración Yape' }}
       />
+      <Stack.Screen name="[barbershopId]/services" options={{ headerShown: false }} />
     </Stack>
   );
 }
