@@ -136,6 +136,11 @@ export function BarbershopDetailScreen({ barbershopId }: { barbershopId: string 
               onPress={() => router.push(`/barbershops/${barbershopId}/services`)}
               variant="secondary"
             />
+            <ActionButton
+              label="Horarios y cierres"
+              onPress={() => router.push(`/barbershops/${barbershopId}/schedules`)}
+              variant="secondary"
+            />
           </SurfaceCard>
         ) : (
           <StatusMessage
