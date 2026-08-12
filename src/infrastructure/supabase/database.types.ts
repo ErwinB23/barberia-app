@@ -1089,6 +1089,13 @@ export type Database = {
           starts_at: string;
         }[];
       };
+      get_own_barber_profile: {
+        Args: { p_barbershop_id: string };
+        Returns: {
+          barber_id: string;
+          is_active: boolean;
+        }[];
+      };
       mark_no_show: { Args: { p_reservation_id: string }; Returns: undefined };
       pause_barbershop: {
         Args: { p_barbershop_id: string };
