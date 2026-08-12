@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { useAuth } from '@/features/auth/hooks/use-auth';
+import { OwnBarberProfileCard } from '@/features/barbers/components/own-barber-profile-card';
 import { ActionButton } from '@/shared/components/ui/action-button';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
@@ -141,12 +142,14 @@ export function BarbershopDetailScreen({ barbershopId }: { barbershopId: string 
               onPress={() => router.push(`/barbershops/${barbershopId}/schedules`)}
               variant="secondary"
             />
+            <ActionButton
+              label="Barberos"
+              onPress={() => router.push(`/barbershops/${barbershopId}/barbers`)}
+              variant="secondary"
+            />
           </SurfaceCard>
         ) : (
-          <StatusMessage
-            message="Tu acceso de barbero permite consultar esta barbería. Los controles administrativos están reservados a administradores."
-            tone="success"
-          />
+          <OwnBarberProfileCard barbershopId={barbershopId} />
         )}
 
         <SurfaceCard style={styles.card}>
