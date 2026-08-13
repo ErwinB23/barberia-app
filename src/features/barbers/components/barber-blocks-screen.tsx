@@ -14,7 +14,7 @@ import { Layout, TypeScale } from '@/theme/tokens';
 
 import { deleteBarberBlock } from '../actions';
 import { getBarberErrorMessage } from '../errors';
-import { useAdminBarberResource } from '../hooks/use-admin-barber-resource';
+import { useBarberProfileResource } from '../hooks/use-barber-profile-resource';
 import { getUpcomingBarberBlocks } from '../queries';
 import type { BarberBlock } from '../types';
 
@@ -52,14 +52,14 @@ export function BarberBlocksScreen({
         : Promise.resolve([]),
     [barberId, barbershopId],
   );
-  const resource = useAdminBarberResource(barbershopId, load, 'blocks');
+  const resource = useBarberProfileResource(barbershopId, barberId, load, 'blocks');
   const refresh = async () => {
     setIsRefreshing(true);
     await resource.reload();
     setIsRefreshing(false);
   };
   const remove = async () => {
-    if (!pending || !barbershopId || !barberId || resource.role !== 'administrator') return;
+    if (!pending || !barbershopId || !barberId || !resource.access.canManageBlocks) return;
     setDeletingId(pending.id);
     setMutationError(null);
     setFeedback(null);
@@ -80,10 +80,10 @@ export function BarberBlocksScreen({
         <ThemedText themeColor="textSecondary">Cargando bloqueos…</ThemedText>
       </ThemedView>
     );
-  if (resource.role !== 'administrator')
+  if (!resource.access.canManageBlocks)
     return (
       <ThemedView style={styles.centered}>
-        <StatusMessage message={resource.error ?? 'No tienes acceso administrativo.'} />
+        <StatusMessage message={resource.error ?? 'No tienes acceso a estos bloqueos.'} />
         <ActionButton
           label="Reintentar"
           onPress={() => void resource.reload()}
@@ -104,7 +104,7 @@ export function BarberBlocksScreen({
             <ScreenHeading
               description="Registra períodos excepcionales en los que el barbero no atenderá."
               eyebrow="Agenda"
-              title="Bloqueos futuros"
+              title={resource.isOwnProfile ? 'Mis bloqueos futuros' : 'Bloqueos futuros'}
             />
             <ActionButton
               label="Nuevo bloqueo"

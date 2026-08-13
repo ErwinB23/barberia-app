@@ -12,9 +12,10 @@ import { Spacing } from '@/theme/spacing';
 import { Layout, Radius, TypeScale } from '@/theme/tokens';
 
 import { assignBarberService, unassignBarberService } from '../actions';
+import type { BarberOperationalAccess } from '../barber-domain';
 import { getBarberErrorMessage } from '../errors';
-import { useAdminBarberResource } from '../hooks/use-admin-barber-resource';
-import { getBarberServiceOptions } from '../queries';
+import { useBarberProfileResource } from '../hooks/use-barber-profile-resource';
+import { getAssignedBarberServices, getBarberServiceOptions } from '../queries';
 import type { BarberServiceOption } from '../types';
 
 export function BarberServicesScreen({
@@ -31,20 +32,22 @@ export function BarberServicesScreen({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const load = useCallback(
-    () =>
-      barbershopId && barberId
+    (access: BarberOperationalAccess) => {
+      if (!barbershopId || !barberId) return Promise.resolve([]);
+      return access.canManageServices
         ? getBarberServiceOptions(barbershopId, barberId)
-        : Promise.resolve([]),
+        : getAssignedBarberServices(barbershopId, barberId);
+    },
     [barberId, barbershopId],
   );
-  const resource = useAdminBarberResource(barbershopId, load, 'services');
+  const resource = useBarberProfileResource(barbershopId, barberId, load, 'services');
   const refresh = async () => {
     setIsRefreshing(true);
     await resource.reload();
     setIsRefreshing(false);
   };
   const change = async (service: BarberServiceOption, assign: boolean) => {
-    if (!barbershopId || !barberId || resource.role !== 'administrator') return;
+    if (!barbershopId || !barberId || !resource.access.canManageServices) return;
     setChangingId(service.id);
     setMutationError(null);
     setFeedback(null);
@@ -68,10 +71,10 @@ export function BarberServicesScreen({
         <ThemedText themeColor="textSecondary">Cargando servicios…</ThemedText>
       </ThemedView>
     );
-  if (resource.role !== 'administrator')
+  if (!resource.access.canViewServices)
     return (
       <ThemedView style={styles.centered}>
-        <StatusMessage message={resource.error ?? 'No tienes acceso administrativo.'} />
+        <StatusMessage message={resource.error ?? 'No tienes acceso a estos servicios.'} />
         <ActionButton
           label="Reintentar"
           onPress={() => void resource.reload()}
@@ -90,9 +93,13 @@ export function BarberServicesScreen({
         ListHeaderComponent={
           <View style={styles.header}>
             <ScreenHeading
-              description="Asigna únicamente servicios del catálogo de esta barbería."
+              description={
+                resource.access.canManageServices
+                  ? 'Asigna únicamente servicios del catálogo de esta barbería.'
+                  : 'Consulta los servicios que la administración asignó a tu perfil.'
+              }
               eyebrow="Capacidades"
-              title="Servicios del barbero"
+              title={resource.isOwnProfile ? 'Mis servicios' : 'Servicios del barbero'}
             />
             <ActionButton
               disabled={isRefreshing}
@@ -104,7 +111,7 @@ export function BarberServicesScreen({
             {resource.error || mutationError ? (
               <StatusMessage message={mutationError ?? resource.error!} />
             ) : null}
-            {pendingRemoval ? (
+            {resource.access.canManageServices && pendingRemoval ? (
               <SurfaceCard style={styles.confirm}>
                 <ThemedText style={styles.title}>¿Quitar {pendingRemoval.name}?</ThemedText>
                 <ThemedText themeColor="textSecondary">
@@ -130,9 +137,15 @@ export function BarberServicesScreen({
         }
         ListEmptyComponent={
           <SurfaceCard style={styles.empty}>
-            <ThemedText style={styles.title}>No hay servicios en el catálogo</ThemedText>
+            <ThemedText style={styles.title}>
+              {resource.access.canManageServices
+                ? 'No hay servicios en el catálogo'
+                : 'No tienes servicios asignados'}
+            </ThemedText>
             <ThemedText themeColor="textSecondary">
-              Crea servicios antes de configurar las capacidades del barbero.
+              {resource.access.canManageServices
+                ? 'Crea servicios antes de configurar las capacidades del barbero.'
+                : 'La administración de la barbería debe asignarlos a tu perfil.'}
             </ThemedText>
           </SurfaceCard>
         }
@@ -144,44 +157,57 @@ export function BarberServicesScreen({
             tintColor={theme.primary}
           />
         }
-        renderItem={({ item }) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ checked: item.isAssigned, disabled: changingId === item.id }}
-            disabled={changingId === item.id}
-            onPress={() => (item.isAssigned ? setPendingRemoval(item) : void change(item, true))}
-            style={({ pressed }) => [
-              styles.option,
-              {
-                backgroundColor: theme.surface,
-                borderColor: item.isAssigned ? theme.primary : theme.border,
-              },
-              pressed ? { backgroundColor: theme.surfaceMuted } : null,
-            ]}
-          >
-            <View style={styles.optionCopy}>
-              <ThemedText style={styles.optionName}>{item.name}</ThemedText>
-              <ThemedText themeColor="textSecondary">
-                {item.isActive ? 'Servicio activo' : 'Servicio inactivo'}
-              </ThemedText>
-            </View>
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: item.isAssigned ? theme.successSurface : theme.surfaceMuted },
+        renderItem={({ item }) => {
+          const content = (
+            <>
+              <View style={styles.optionCopy}>
+                <ThemedText style={styles.optionName}>{item.name}</ThemedText>
+                <ThemedText themeColor="textSecondary">
+                  {item.isActive ? 'Servicio activo' : 'Servicio inactivo'}
+                </ThemedText>
+              </View>
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: item.isAssigned ? theme.successSurface : theme.surfaceMuted },
+                ]}
+              >
+                <ThemedText
+                  style={{
+                    color: item.isAssigned ? theme.success : theme.textSecondary,
+                    fontWeight: '700',
+                  }}
+                >
+                  {item.isAssigned ? 'Asignado' : 'Asignar'}
+                </ThemedText>
+              </View>
+            </>
+          );
+          const optionStyle = [
+            styles.option,
+            {
+              backgroundColor: theme.surface,
+              borderColor: item.isAssigned ? theme.primary : theme.border,
+            },
+          ];
+
+          return resource.access.canManageServices ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ checked: item.isAssigned, disabled: changingId === item.id }}
+              disabled={changingId === item.id}
+              onPress={() => (item.isAssigned ? setPendingRemoval(item) : void change(item, true))}
+              style={({ pressed }) => [
+                ...optionStyle,
+                pressed ? { backgroundColor: theme.surfaceMuted } : null,
               ]}
             >
-              <ThemedText
-                style={{
-                  color: item.isAssigned ? theme.success : theme.textSecondary,
-                  fontWeight: '700',
-                }}
-              >
-                {item.isAssigned ? 'Asignado' : 'Asignar'}
-              </ThemedText>
-            </View>
-          </Pressable>
-        )}
+              {content}
+            </Pressable>
+          ) : (
+            <View style={optionStyle}>{content}</View>
+          );
+        }}
       />
     </ThemedView>
   );

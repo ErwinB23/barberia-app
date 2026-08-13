@@ -37,6 +37,22 @@ export type ParsedBarberProfileForm = {
   photoUrl: string | null;
 };
 
+type BarberOperationalAccessInput = {
+  role: 'barber' | 'administrator' | null;
+  targetBarberId: string;
+  ownProfile: { barberId: string; isActive: boolean } | null;
+};
+
+export type BarberOperationalAccess = {
+  canAccess: boolean;
+  canEditProfile: boolean;
+  canViewServices: boolean;
+  canManageServices: boolean;
+  canManageSchedule: boolean;
+  canManageBlocks: boolean;
+  canDeactivate: boolean;
+};
+
 export type BarberScheduleFormErrors = Partial<Record<keyof BarberScheduleFormValues, string>>;
 export type BlockFormErrors = Partial<Record<keyof BlockFormValues, string>>;
 export type BarberProfileFormErrors = Partial<Record<keyof BarberProfileFormValues, string>>;
@@ -55,6 +71,48 @@ const WEEKDAY_NAMES: Record<Weekday, string> = {
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+const NO_OPERATIONAL_ACCESS: BarberOperationalAccess = {
+  canAccess: false,
+  canEditProfile: false,
+  canViewServices: false,
+  canManageServices: false,
+  canManageSchedule: false,
+  canManageBlocks: false,
+  canDeactivate: false,
+};
+
+export function getBarberOperationalAccess({
+  role,
+  targetBarberId,
+  ownProfile,
+}: BarberOperationalAccessInput): BarberOperationalAccess {
+  if (role === 'administrator') {
+    return {
+      canAccess: true,
+      canEditProfile: true,
+      canViewServices: true,
+      canManageServices: true,
+      canManageSchedule: true,
+      canManageBlocks: true,
+      canDeactivate: true,
+    };
+  }
+
+  const isActiveOwner =
+    role === 'barber' && ownProfile?.isActive === true && ownProfile.barberId === targetBarberId;
+  if (!isActiveOwner) return NO_OPERATIONAL_ACCESS;
+
+  return {
+    canAccess: true,
+    canEditProfile: true,
+    canViewServices: true,
+    canManageServices: false,
+    canManageSchedule: true,
+    canManageBlocks: true,
+    canDeactivate: true,
+  };
+}
 
 export function getWeekdayName(weekday: Weekday) {
   return WEEKDAY_NAMES[weekday];

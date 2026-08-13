@@ -38,7 +38,7 @@ export function OwnBarberProfileCard({ barbershopId }: { barbershopId: string })
   return (
     <SurfaceCard style={{ gap: Spacing.three, padding: Spacing.four }}>
       <ThemedText style={{ fontSize: TypeScale.title, fontWeight: '700' }}>
-        Mi perfil de barbero
+        Mi espacio de barbero
       </ThemedText>
       {isLoading ? (
         <ThemedText themeColor="textSecondary">Cargando perfil operativo…</ThemedText>
@@ -50,10 +50,10 @@ export function OwnBarberProfileCard({ barbershopId }: { barbershopId: string })
       ) : profile?.isActive ? (
         <>
           <ThemedText themeColor="textSecondary">
-            Consulta y actualiza la información pública de tu perfil activo.
+            Gestiona tu perfil público, servicios asignados, horario individual y bloqueos.
           </ThemedText>
           <ActionButton
-            label="Ver mi perfil"
+            label="Entrar a mi espacio"
             onPress={() => router.push(`/barbershops/${barbershopId}/barbers/${profile.barberId}`)}
             variant="secondary"
           />

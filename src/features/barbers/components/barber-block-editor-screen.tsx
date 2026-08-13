@@ -13,7 +13,7 @@ import { Spacing } from '@/theme/spacing';
 import { createBarberBlock } from '../actions';
 import { parseBlockForm, type BlockFormErrors, type BlockFormValues } from '../barber-domain';
 import { getBarberErrorMessage } from '../errors';
-import { useAdminBarberResource } from '../hooks/use-admin-barber-resource';
+import { useBarberProfileResource } from '../hooks/use-barber-profile-resource';
 import { BarberFormPage } from './barber-form-page';
 
 const EMPTY: BlockFormValues = {
@@ -37,13 +37,13 @@ export function BarberBlockEditorScreen({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const load = useCallback(() => Promise.resolve(true), []);
-  const resource = useAdminBarberResource(barbershopId, load, 'blocks');
+  const resource = useBarberProfileResource(barbershopId, barberId, load, 'blocks');
   const update = (field: keyof BlockFormValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
   };
   const submit = async () => {
-    if (!barbershopId || !barberId || !user || resource.role !== 'administrator') return;
+    if (!barbershopId || !barberId || !user || !resource.access.canManageBlocks) return;
     const parsed = parseBlockForm(values);
     setErrors(parsed.errors);
     if (!parsed.values) return;
@@ -64,10 +64,10 @@ export function BarberBlockEditorScreen({
         <ThemedText themeColor="textSecondary">Preparando bloqueo…</ThemedText>
       </ThemedView>
     );
-  if (resource.role !== 'administrator')
+  if (!resource.access.canManageBlocks)
     return (
       <ThemedView style={styles.centered}>
-        <StatusMessage message={resource.error ?? 'No tienes acceso administrativo.'} />
+        <StatusMessage message={resource.error ?? 'No tienes acceso a estos bloqueos.'} />
         <ActionButton
           label="Reintentar"
           onPress={() => void resource.reload()}

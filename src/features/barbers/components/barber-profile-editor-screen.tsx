@@ -122,6 +122,7 @@ export function BarberProfileEditorScreen({
   );
   const {
     data: barber,
+    access,
     isLoading,
     error,
     reload,
@@ -135,7 +136,7 @@ export function BarberProfileEditorScreen({
     );
   }
 
-  if (!barber) {
+  if (!barber || !access.canEditProfile) {
     return (
       <ThemedView
         style={{ flex: 1, justifyContent: 'center', gap: Spacing.three, padding: Spacing.four }}

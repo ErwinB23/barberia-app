@@ -66,8 +66,36 @@ export async function getBarbers(barbershopId: string): Promise<Barber[]> {
 }
 
 export async function getBarber(barbershopId: string, barberId: string): Promise<Barber | null> {
-  const barbers = await getBarbers(barbershopId);
-  return barbers.find((barber) => barber.id === barberId) ?? null;
+  const [barberResult, assignmentsResult] = await Promise.all([
+    supabase
+      .from('barbers')
+      .select(BARBER_COLUMNS)
+      .eq('barbershop_id', barbershopId)
+      .eq('id', barberId)
+      .maybeSingle(),
+    supabase
+      .from('barber_services')
+      .select(ASSIGNMENT_COLUMNS)
+      .eq('barbershop_id', barbershopId)
+      .eq('barber_id', barberId),
+  ]);
+  if (barberResult.error) throw barberResult.error;
+  if (assignmentsResult.error) throw assignmentsResult.error;
+  if (!barberResult.data) return null;
+
+  const serviceIds = getSelectedServiceIds(
+    assignmentsResult.data.map((assignment) => ({ serviceId: assignment.service_id })),
+  );
+  if (serviceIds.length === 0) return mapBarbers([barberResult.data], [], [])[0] ?? null;
+
+  const { data: services, error: servicesError } = await supabase
+    .from('services')
+    .select('id, barbershop_id, name, is_active')
+    .eq('barbershop_id', barbershopId)
+    .in('id', serviceIds);
+  if (servicesError) throw servicesError;
+
+  return mapBarbers([barberResult.data], assignmentsResult.data, services)[0] ?? null;
 }
 
 export async function getBarberServiceOptions(
@@ -97,6 +125,33 @@ export async function getBarberServiceOptions(
     ...service,
     isAssigned: assignedIds.has(service.id),
   }));
+}
+
+export async function getAssignedBarberServices(
+  barbershopId: string,
+  barberId: string,
+): Promise<BarberServiceOption[]> {
+  const { data: assignments, error: assignmentsError } = await supabase
+    .from('barber_services')
+    .select(ASSIGNMENT_COLUMNS)
+    .eq('barbershop_id', barbershopId)
+    .eq('barber_id', barberId);
+  if (assignmentsError) throw assignmentsError;
+
+  const serviceIds = getSelectedServiceIds(
+    assignments.map((assignment) => ({ serviceId: assignment.service_id })),
+  );
+  if (serviceIds.length === 0) return [];
+
+  const { data: services, error: servicesError } = await supabase
+    .from('services')
+    .select('id, barbershop_id, name, is_active')
+    .eq('barbershop_id', barbershopId)
+    .in('id', serviceIds)
+    .order('name');
+  if (servicesError) throw servicesError;
+
+  return mapServices(services).map((service) => ({ ...service, isAssigned: true }));
 }
 
 export async function getBarberSchedule(

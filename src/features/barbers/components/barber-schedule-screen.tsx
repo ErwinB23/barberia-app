@@ -15,7 +15,7 @@ import { Layout, TypeScale } from '@/theme/tokens';
 import { deleteBarberSchedule } from '../actions';
 import { getWeekdayName, sortTimeIntervals, WEEKDAYS_MONDAY_FIRST } from '../barber-domain';
 import { getBarberErrorMessage } from '../errors';
-import { useAdminBarberResource } from '../hooks/use-admin-barber-resource';
+import { useBarberProfileResource } from '../hooks/use-barber-profile-resource';
 import { getBarberSchedule, getBarbershopHours } from '../queries';
 import type { BarberSchedule } from '../types';
 
@@ -44,14 +44,14 @@ export function BarberScheduleScreen({
     ]);
     return { schedules, hours };
   }, [barberId, barbershopId]);
-  const resource = useAdminBarberResource(barbershopId, load, 'schedules');
+  const resource = useBarberProfileResource(barbershopId, barberId, load, 'schedules');
   const refresh = async () => {
     setIsRefreshing(true);
     await resource.reload();
     setIsRefreshing(false);
   };
   const remove = async () => {
-    if (!pending || !barbershopId || !barberId || resource.role !== 'administrator') return;
+    if (!pending || !barbershopId || !barberId || !resource.access.canManageSchedule) return;
     setDeletingId(pending.id);
     setMutationError(null);
     setFeedback(null);
@@ -72,10 +72,10 @@ export function BarberScheduleScreen({
         <ThemedText themeColor="textSecondary">Cargando horario individual…</ThemedText>
       </ThemedView>
     );
-  if (resource.role !== 'administrator')
+  if (!resource.access.canManageSchedule)
     return (
       <ThemedView style={styles.centered}>
-        <StatusMessage message={resource.error ?? 'No tienes acceso administrativo.'} />
+        <StatusMessage message={resource.error ?? 'No tienes acceso a este horario.'} />
         <ActionButton
           label="Reintentar"
           onPress={() => void resource.reload()}
@@ -103,7 +103,7 @@ export function BarberScheduleScreen({
             <ScreenHeading
               description="Cada intervalo debe caber completamente dentro del horario general."
               eyebrow="Disponibilidad operativa"
-              title="Horario individual"
+              title={resource.isOwnProfile ? 'Mi horario' : 'Horario individual'}
             />
             <ActionButton
               disabled={isRefreshing}

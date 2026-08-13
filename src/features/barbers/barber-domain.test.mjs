@@ -141,3 +141,66 @@ test('valida que un bloqueo termine después de comenzar', () => {
   assert.equal(invalid.values, null);
   assert.equal(invalid.errors.endTime, 'El bloqueo debe terminar después de comenzar.');
 });
+
+test('permite al barbero gestionar solo su espacio operativo sin administrar servicios', () => {
+  const access =
+    typeof barberDomain.getBarberOperationalAccess === 'function'
+      ? barberDomain.getBarberOperationalAccess({
+          role: 'barber',
+          targetBarberId: 'barber-own',
+          ownProfile: { barberId: 'barber-own', isActive: true },
+        })
+      : null;
+
+  assert.deepEqual(access, {
+    canAccess: true,
+    canEditProfile: true,
+    canViewServices: true,
+    canManageServices: false,
+    canManageSchedule: true,
+    canManageBlocks: true,
+    canDeactivate: true,
+  });
+});
+
+test('impide al barbero acceder al espacio operativo de otro barbero', () => {
+  const access =
+    typeof barberDomain.getBarberOperationalAccess === 'function'
+      ? barberDomain.getBarberOperationalAccess({
+          role: 'barber',
+          targetBarberId: 'barber-other',
+          ownProfile: { barberId: 'barber-own', isActive: true },
+        })
+      : null;
+
+  assert.deepEqual(access, {
+    canAccess: false,
+    canEditProfile: false,
+    canViewServices: false,
+    canManageServices: false,
+    canManageSchedule: false,
+    canManageBlocks: false,
+    canDeactivate: false,
+  });
+});
+
+test('conserva la gestión completa del administrador dentro de su barbería', () => {
+  const access =
+    typeof barberDomain.getBarberOperationalAccess === 'function'
+      ? barberDomain.getBarberOperationalAccess({
+          role: 'administrator',
+          targetBarberId: 'barber-other',
+          ownProfile: null,
+        })
+      : null;
+
+  assert.deepEqual(access, {
+    canAccess: true,
+    canEditProfile: true,
+    canViewServices: true,
+    canManageServices: true,
+    canManageSchedule: true,
+    canManageBlocks: true,
+    canDeactivate: true,
+  });
+});

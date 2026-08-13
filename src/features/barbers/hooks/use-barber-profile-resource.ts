@@ -3,14 +3,16 @@ import { useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/features/auth/hooks/use-auth';
 
-import { getBarberErrorMessage } from '../errors';
+import { getBarberOperationalAccess, type BarberOperationalAccess } from '../barber-domain';
+import { getBarberErrorMessage, type BarberOperation } from '../errors';
 import { getBarberManagementRole, getOwnBarberProfile } from '../queries';
 import type { MembershipRole, OwnBarberProfile } from '../types';
 
 export function useBarberProfileResource<T>(
   barbershopId: string | null,
   barberId: string | null,
-  loadResource: () => Promise<T>,
+  loadResource: (access: BarberOperationalAccess) => Promise<T>,
+  operation: BarberOperation = 'barbers',
 ) {
   const { user } = useAuth();
   const [data, setData] = useState<T | null>(null);
@@ -22,6 +24,8 @@ export function useBarberProfileResource<T>(
   const load = useCallback(async () => {
     if (!user || !barbershopId || !barberId) {
       setData(null);
+      setRole(null);
+      setOwnProfile(null);
       setError('El perfil solicitado no es válido.');
       setIsLoading(false);
       return;
@@ -33,20 +37,24 @@ export function useBarberProfileResource<T>(
         getBarberManagementRole(user.id, barbershopId),
         getOwnBarberProfile(barbershopId),
       ]);
-      const canEdit =
-        nextRole === 'administrator' ||
-        (nextOwnProfile?.isActive === true && nextOwnProfile.barberId === barberId);
+      const access = getBarberOperationalAccess({
+        role: nextRole,
+        targetBarberId: barberId,
+        ownProfile: nextOwnProfile,
+      });
       setRole(nextRole);
       setOwnProfile(nextOwnProfile);
-      setData(canEdit ? await loadResource() : null);
-      if (!canEdit) setError('No tienes permiso para editar este perfil de barbero.');
+      setData(access.canAccess ? await loadResource(access) : null);
+      if (!access.canAccess) setError('No tienes permiso para acceder a este perfil de barbero.');
     } catch (loadError) {
       setData(null);
-      setError(getBarberErrorMessage(loadError, 'barbers'));
+      setRole(null);
+      setOwnProfile(null);
+      setError(getBarberErrorMessage(loadError, operation));
     } finally {
       setIsLoading(false);
     }
-  }, [barberId, barbershopId, loadResource, user]);
+  }, [barberId, barbershopId, loadResource, operation, user]);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,5 +63,6 @@ export function useBarberProfileResource<T>(
   );
 
   const isOwnProfile = ownProfile?.barberId === barberId;
-  return { data, role, isOwnProfile, isLoading, error, reload: load };
+  const access = getBarberOperationalAccess({ role, targetBarberId: barberId ?? '', ownProfile });
+  return { data, role, isOwnProfile, access, isLoading, error, reload: load };
 }
