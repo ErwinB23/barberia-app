@@ -1,6 +1,7 @@
 import { supabase } from '@/infrastructure/supabase/client';
 
 import { mapMembershipRows } from './mappers';
+import { buildPublicationReadiness } from './publication';
 import type {
   BarbershopDetail,
   BarbershopSettings,
@@ -82,6 +83,49 @@ async function getBarbershopSettings(barbershopId: string): Promise<BarbershopSe
   return data;
 }
 
+async function getPublicationReadiness(
+  barbershop: UserBarbershop['barbershop'],
+): Promise<BarbershopDetail['publicationReadiness']> {
+  const [hoursResult, servicesResult, barbersResult] = await Promise.all([
+    supabase.from('barbershop_hours').select('id').eq('barbershop_id', barbershop.id).limit(1),
+    supabase
+      .from('services')
+      .select('id')
+      .eq('barbershop_id', barbershop.id)
+      .eq('is_active', true)
+      .limit(1),
+    supabase.from('barbers').select('id').eq('barbershop_id', barbershop.id).eq('is_active', true),
+  ]);
+
+  if (hoursResult.error) throw hoursResult.error;
+  if (servicesResult.error) throw servicesResult.error;
+  if (barbersResult.error) throw barbersResult.error;
+
+  const activeBarberIds = barbersResult.data.map((barber) => barber.id);
+  let hasScheduledActiveBarber = false;
+
+  if (activeBarberIds.length > 0) {
+    const { data, error } = await supabase
+      .from('barber_schedules')
+      .select('id')
+      .eq('barbershop_id', barbershop.id)
+      .in('barber_id', activeBarberIds)
+      .limit(1);
+
+    if (error) throw error;
+    hasScheduledActiveBarber = data.length > 0;
+  }
+
+  return buildPublicationReadiness({
+    phone: barbershop.phone,
+    address: barbershop.address,
+    hasOpeningHours: hoursResult.data.length > 0,
+    hasActiveService: servicesResult.data.length > 0,
+    hasActiveBarber: activeBarberIds.length > 0,
+    hasScheduledActiveBarber,
+  });
+}
+
 export async function getBarbershopDetail(
   userId: string,
   barbershopId: string,
@@ -92,10 +136,15 @@ export async function getBarbershopDetail(
     return null;
   }
 
-  const settings =
-    membership.role === 'administrator' ? await getBarbershopSettings(barbershopId) : null;
+  const [settings, publicationReadiness] =
+    membership.role === 'administrator'
+      ? await Promise.all([
+          getBarbershopSettings(barbershopId),
+          getPublicationReadiness(membership.barbershop),
+        ])
+      : [null, null];
 
-  return { ...membership, settings };
+  return { ...membership, settings, publicationReadiness };
 }
 
 async function getOwnMembershipRole(

@@ -72,3 +72,27 @@ export async function updateYapeSettings(barbershopId: string, input: YapeSettin
     throw error;
   }
 }
+
+export async function publishBarbershop(barbershopId: string) {
+  const { error } = await supabase.rpc('publish_barbershop', {
+    p_barbershop_id: barbershopId,
+  });
+
+  if (error) throw error;
+}
+
+export async function pauseBarbershop(barbershopId: string) {
+  const { error } = await supabase.rpc('pause_barbershop', {
+    p_barbershop_id: barbershopId,
+  });
+
+  if (error) throw error;
+}
+
+export async function unpublishBarbershop(barbershopId: string) {
+  const { error } = await supabase.rpc('unpublish_barbershop', {
+    p_barbershop_id: barbershopId,
+  });
+
+  if (error) throw error;
+}
