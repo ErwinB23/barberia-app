@@ -18,7 +18,7 @@ import {
   type Weekday,
 } from '../barber-domain';
 import { getBarberErrorMessage } from '../errors';
-import { useAdminBarberResource } from '../hooks/use-admin-barber-resource';
+import { useBarberProfileResource } from '../hooks/use-barber-profile-resource';
 import { getBarberSchedule, getBarbershopHours } from '../queries';
 import type { BarberSchedule, BarbershopHour } from '../types';
 import { BarberFormPage } from './barber-form-page';
@@ -146,7 +146,7 @@ export function BarberScheduleEditorScreen({
     ]);
     return { schedules, hours };
   }, [barberId, barbershopId]);
-  const resource = useAdminBarberResource(barbershopId, load, 'schedules');
+  const resource = useBarberProfileResource(barbershopId, barberId, load, 'schedules');
   const target =
     mode === 'edit' ? resource.data?.schedules.find((item) => item.id === scheduleId) : null;
   const weekday = mode === 'edit' ? (target?.weekday ?? null) : requestedWeekday;
@@ -159,7 +159,7 @@ export function BarberScheduleEditorScreen({
     );
   }
   if (
-    resource.role !== 'administrator' ||
+    !resource.access.canManageSchedule ||
     !barbershopId ||
     !barberId ||
     weekday === null ||

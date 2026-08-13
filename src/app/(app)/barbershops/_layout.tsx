@@ -26,6 +26,7 @@ export default function BarbershopsLayout() {
       <Stack.Screen name="[barbershopId]/services" options={{ headerShown: false }} />
       <Stack.Screen name="[barbershopId]/schedules" options={{ headerShown: false }} />
       <Stack.Screen name="[barbershopId]/barbers" options={{ headerShown: false }} />
+      <Stack.Screen name="[barbershopId]/invitations" options={{ headerShown: false }} />
     </Stack>
   );
 }

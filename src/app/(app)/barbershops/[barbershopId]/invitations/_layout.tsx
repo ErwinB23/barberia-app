@@ -2,9 +2,8 @@ import { Stack } from 'expo-router/stack';
 
 import { useTheme } from '@/theme/hooks/use-theme';
 
-export default function AppLayout() {
+export default function InvitationsLayout() {
   const theme = useTheme();
-
   return (
     <Stack
       screenOptions={{
@@ -14,10 +13,8 @@ export default function AppLayout() {
         headerTintColor: theme.text,
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Inicio' }} />
-      <Stack.Screen name="profile" options={{ title: 'Mi perfil' }} />
-      <Stack.Screen name="invitations" options={{ title: 'Mis invitaciones' }} />
-      <Stack.Screen name="barbershops" options={{ headerShown: false }} />
+      <Stack.Screen name="index" options={{ title: 'Invitaciones' }} />
+      <Stack.Screen name="new" options={{ title: 'Nueva invitación' }} />
     </Stack>
   );
 }

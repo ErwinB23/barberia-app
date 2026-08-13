@@ -35,18 +35,24 @@ export function BarberDetailScreen({
   const {
     data: barber,
     role,
+    isOwnProfile,
+    access,
     isLoading,
     error,
     reload,
   } = useBarberProfileResource(barbershopId, barberId, loadBarber);
   const deactivate = async () => {
-    if (!barber || role !== 'administrator') return;
+    if (!barber || !access.canDeactivate) return;
     setIsDeactivating(true);
     setMutationError(null);
     try {
       await deactivateBarber(barber.id);
       setConfirming(false);
-      await reload();
+      if (isOwnProfile && role !== 'administrator') {
+        router.replace('/barbershops');
+      } else {
+        await reload();
+      }
     } catch (mutation) {
       setMutationError(getBarberErrorMessage(mutation, 'barbers'));
     } finally {
@@ -93,32 +99,36 @@ export function BarberDetailScreen({
               ? barber.services.map((service) => service.name).join(' · ')
               : 'Sin servicios asignados'}
           </ThemedText>
-          <ActionButton
-            label="Editar perfil público"
-            onPress={() => router.push(`/barbershops/${barbershopId}/barbers/${barber.id}/edit`)}
-            variant="secondary"
-          />
+          {access.canEditProfile ? (
+            <ActionButton
+              label="Editar perfil público"
+              onPress={() => router.push(`/barbershops/${barbershopId}/barbers/${barber.id}/edit`)}
+              variant="secondary"
+            />
+          ) : null}
         </SurfaceCard>
-        {role === 'administrator' ? (
+        {access.canAccess ? (
           <>
             <SurfaceCard style={styles.card}>
-              <ThemedText style={styles.sectionTitle}>Operación</ThemedText>
+              <ThemedText style={styles.sectionTitle}>
+                {isOwnProfile ? 'Mi espacio operativo' : 'Operación'}
+              </ThemedText>
               <ActionButton
-                label="Servicios asignados"
+                label={isOwnProfile ? 'Mis servicios' : 'Servicios asignados'}
                 onPress={() =>
                   router.push(`/barbershops/${barbershopId}/barbers/${barber.id}/services`)
                 }
                 variant="secondary"
               />
               <ActionButton
-                label="Horario individual"
+                label={isOwnProfile ? 'Mi horario' : 'Horario individual'}
                 onPress={() =>
                   router.push(`/barbershops/${barbershopId}/barbers/${barber.id}/schedule`)
                 }
                 variant="secondary"
               />
               <ActionButton
-                label="Bloqueos excepcionales"
+                label={isOwnProfile ? 'Mis bloqueos' : 'Bloqueos excepcionales'}
                 onPress={() =>
                   router.push(`/barbershops/${barbershopId}/barbers/${barber.id}/blocks`)
                 }
@@ -149,7 +159,7 @@ export function BarberDetailScreen({
                 </>
               ) : (
                 <ActionButton
-                  label="Desactivar barbero"
+                  label={isOwnProfile ? 'Desactivar mi perfil de barbero' : 'Desactivar barbero'}
                   onPress={() => setConfirming(true)}
                   variant="danger"
                 />
@@ -157,12 +167,7 @@ export function BarberDetailScreen({
               {mutationError ? <StatusMessage message={mutationError} /> : null}
             </SurfaceCard>
           </>
-        ) : (
-          <StatusMessage
-            message="Puedes editar tu información pública. Las acciones administrativas permanecen restringidas."
-            tone="success"
-          />
-        )}
+        ) : null}
       </ScrollView>
     </ThemedView>
   );

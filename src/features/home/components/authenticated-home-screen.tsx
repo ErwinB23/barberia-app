@@ -1,8 +1,9 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 
 import { useAuth } from '@/features/auth/hooks/use-auth';
 import { useProfile } from '@/features/profile/hooks/use-profile';
+import { usePendingInvitationCount } from '@/features/invitations/hooks/use-pending-invitation-count';
 import { ActionButton } from '@/shared/components/ui/action-button';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
@@ -15,22 +16,25 @@ import { Layout, TypeScale } from '@/theme/tokens';
 export function AuthenticatedHomeScreen() {
   const { user } = useAuth();
   const { profile, error } = useProfile(user!);
+  const { count: pendingInvitationCount, error: invitationCountError } = usePendingInvitationCount(
+    user?.id ?? null,
+  );
   const firstName = profile?.fullName?.trim().split(/\s+/)[0];
 
   return (
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
         <ScreenHeading
-          description="Administra tus espacios y prepara cada barbería para sus próximos módulos."
+          description="Consulta las barberías donde participas y accede a las funciones de tu rol."
           eyebrow="Inicio"
           title={firstName ? `Hola, ${firstName}` : 'Bienvenido'}
         />
         {error ? <StatusMessage message={error} /> : null}
         <SurfaceCard style={styles.primaryCard}>
           <View style={styles.cardCopy}>
-            <ThemedText style={styles.cardTitle}>Gestión de barberías</ThemedText>
+            <ThemedText style={styles.cardTitle}>Mis barberías</ThemedText>
             <ThemedText style={styles.cardDescription} themeColor="textSecondary">
-              Consulta tus roles, crea una barbería y configura sus datos generales.
+              Entra a tu espacio operativo como barbero o a la administración cuando corresponda.
             </ThemedText>
           </View>
           <ActionButton label="Ver mis barberías" onPress={() => router.push('/barbershops')} />
@@ -52,6 +56,18 @@ export function AuthenticatedHomeScreen() {
             onPress={() => router.push('/profile')}
             variant="secondary"
           />
+          <ActionButton
+            label={
+              pendingInvitationCount > 0
+                ? `Invitaciones (${pendingInvitationCount})`
+                : 'Invitaciones'
+            }
+            onPress={() => router.push('/invitations' as Href)}
+            variant="secondary"
+          />
+          {invitationCountError ? (
+            <StatusMessage message="No pudimos consultar el contador de invitaciones." />
+          ) : null}
         </SurfaceCard>
       </ScrollView>
     </ThemedView>

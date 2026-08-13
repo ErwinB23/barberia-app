@@ -110,44 +110,52 @@ export function BarbershopDetailScreen({ barbershopId }: { barbershopId: string 
         </SurfaceCard>
 
         {isAdmin ? (
-          <SurfaceCard style={styles.card}>
-            <View style={styles.sectionCopy}>
-              <ThemedText style={styles.sectionTitle}>Configuración</ThemedText>
-              <ThemedText style={styles.sectionDescription} themeColor="textSecondary">
-                Administra la identidad, las reglas operativas y los datos de pago.
-              </ThemedText>
-            </View>
-            <ActionButton
-              label="Editar datos generales"
-              onPress={() => router.push(`/barbershops/${barbershopId}/edit`)}
-              variant="secondary"
-            />
-            <ActionButton
-              label="Ajustes generales"
-              onPress={() => router.push(`/barbershops/${barbershopId}/settings`)}
-              variant="secondary"
-            />
-            <ActionButton
-              label="Configuración Yape"
-              onPress={() => router.push(`/barbershops/${barbershopId}/payment-settings`)}
-              variant="secondary"
-            />
-            <ActionButton
-              label="Servicios y estilos"
-              onPress={() => router.push(`/barbershops/${barbershopId}/services`)}
-              variant="secondary"
-            />
-            <ActionButton
-              label="Horarios y cierres"
-              onPress={() => router.push(`/barbershops/${barbershopId}/schedules`)}
-              variant="secondary"
-            />
-            <ActionButton
-              label="Barberos"
-              onPress={() => router.push(`/barbershops/${barbershopId}/barbers`)}
-              variant="secondary"
-            />
-          </SurfaceCard>
+          <>
+            <SurfaceCard style={styles.card}>
+              <View style={styles.sectionCopy}>
+                <ThemedText style={styles.sectionTitle}>Configuración</ThemedText>
+                <ThemedText style={styles.sectionDescription} themeColor="textSecondary">
+                  Administra la identidad, las reglas operativas y los datos de pago.
+                </ThemedText>
+              </View>
+              <ActionButton
+                label="Editar datos generales"
+                onPress={() => router.push(`/barbershops/${barbershopId}/edit`)}
+                variant="secondary"
+              />
+              <ActionButton
+                label="Ajustes generales"
+                onPress={() => router.push(`/barbershops/${barbershopId}/settings`)}
+                variant="secondary"
+              />
+              <ActionButton
+                label="Configuración Yape"
+                onPress={() => router.push(`/barbershops/${barbershopId}/payment-settings`)}
+                variant="secondary"
+              />
+              <ActionButton
+                label="Servicios y estilos"
+                onPress={() => router.push(`/barbershops/${barbershopId}/services`)}
+                variant="secondary"
+              />
+              <ActionButton
+                label="Horarios y cierres"
+                onPress={() => router.push(`/barbershops/${barbershopId}/schedules`)}
+                variant="secondary"
+              />
+              <ActionButton
+                label="Barberos"
+                onPress={() => router.push(`/barbershops/${barbershopId}/barbers`)}
+                variant="secondary"
+              />
+              <ActionButton
+                label="Invitaciones de personal"
+                onPress={() => router.push(`/barbershops/${barbershopId}/invitations`)}
+                variant="secondary"
+              />
+            </SurfaceCard>
+            <OwnBarberProfileCard barbershopId={barbershopId} />
+          </>
         ) : (
           <OwnBarberProfileCard barbershopId={barbershopId} />
         )}
