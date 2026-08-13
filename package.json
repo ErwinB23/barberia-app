@@ -51,7 +51,7 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "test": "node --test --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON src/features/auth/validation.test.mjs src/features/profile/profile-metadata.test.mjs src/features/barbershops/barbershop-logic.test.mjs src/features/services/service-logic.test.mjs src/features/schedules/schedule-domain.test.mjs src/features/barbers/barber-domain.test.mjs src/features/invitations/invitation-domain.test.mjs src/features/booking/booking-domain.test.mjs src/features/reservations/reservation-domain.test.mjs src/features/reservations/appointment-domain.test.mjs",
+    "test": "node --test --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON src/features/auth/validation.test.mjs src/features/profile/profile-metadata.test.mjs src/features/barbershops/barbershop-logic.test.mjs src/features/services/service-logic.test.mjs src/features/schedules/schedule-domain.test.mjs src/features/barbers/barber-domain.test.mjs src/features/invitations/invitation-domain.test.mjs src/features/booking/booking-domain.test.mjs src/features/reservations/reservation-domain.test.mjs src/features/reservations/appointment-domain.test.mjs src/features/favorites/favorites-domain.test.mjs src/features/notifications/notifications-domain.test.mjs",
     "check": "npm run lint && npm run typecheck && npm run format:check"
   },
   "private": true
