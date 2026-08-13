@@ -1096,6 +1096,17 @@ export type Database = {
           is_active: boolean;
         }[];
       };
+      get_reschedule_available_slots: {
+        Args: {
+          p_date: string;
+          p_new_barber_id: string;
+          p_reservation_id: string;
+        };
+        Returns: {
+          ends_at: string;
+          starts_at: string;
+        }[];
+      };
       mark_no_show: { Args: { p_reservation_id: string }; Returns: undefined };
       pause_barbershop: {
         Args: { p_barbershop_id: string };

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { getBarbershopErrorMessage } from './errors.ts';
+import { getBarbershopErrorMessage, getPublicationErrorMessage } from './errors.ts';
+import { buildPublicationReadiness } from './publication.ts';
 import {
   normalizeBarbershopForm,
   normalizeYapeSettingsForm,
@@ -30,6 +31,74 @@ test('traduce errores de base de datos sin exponer detalles internos', () => {
   assert.equal(
     getBarbershopErrorMessage(new Error('private database detail')),
     'No pudimos completar la operación. Inténtalo nuevamente.',
+  );
+});
+
+test('presenta los cinco requisitos reales de publicación', () => {
+  assert.deepEqual(
+    buildPublicationReadiness({
+      phone: '+51 999 111 222',
+      address: 'Av. Principal 123',
+      hasOpeningHours: true,
+      hasActiveService: true,
+      hasActiveBarber: true,
+      hasScheduledActiveBarber: false,
+    }),
+    [
+      { key: 'basicData', label: 'Datos básicos requeridos', isComplete: true },
+      { key: 'openingHours', label: 'Horario general configurado', isComplete: true },
+      { key: 'activeService', label: 'Al menos un servicio activo', isComplete: true },
+      { key: 'activeBarber', label: 'Al menos un barbero activo', isComplete: true },
+      {
+        key: 'scheduledActiveBarber',
+        label: 'Al menos un barbero activo con horario individual',
+        isComplete: false,
+      },
+    ],
+  );
+});
+
+test('considera incompletos los datos básicos vacíos', () => {
+  const [basicData] = buildPublicationReadiness({
+    phone: '   ',
+    address: null,
+    hasOpeningHours: false,
+    hasActiveService: false,
+    hasActiveBarber: false,
+    hasScheduledActiveBarber: false,
+  });
+
+  assert.equal(basicData?.isComplete, false);
+});
+
+test('traduce cada requisito rechazado por publish_barbershop', () => {
+  assert.equal(
+    getPublicationErrorMessage({
+      code: '22023',
+      message: 'Complete the required barbershop information',
+    }),
+    'Completa el teléfono y la dirección de la barbería antes de publicarla.',
+  );
+  assert.equal(
+    getPublicationErrorMessage({
+      code: '22023',
+      message: 'Configure barbershop opening hours first',
+    }),
+    'Configura al menos un intervalo en el horario general antes de publicar.',
+  );
+  assert.equal(
+    getPublicationErrorMessage({
+      code: '22023',
+      message: 'At least one active service is required',
+    }),
+    'Activa al menos un servicio antes de publicar.',
+  );
+  assert.equal(
+    getPublicationErrorMessage({
+      code: '22023',
+      message: 'At least one active barber with a configured schedule is required',
+    }),
+    'Necesitas al menos un barbero activo con horario individual antes de publicar.',
   );
 });
 

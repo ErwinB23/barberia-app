@@ -25,14 +25,31 @@ export function AuthenticatedHomeScreen() {
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
         <ScreenHeading
-          description="Consulta las barberías donde participas y accede a las funciones de tu rol."
+          description="Reserva como cliente o entra a los espacios de trabajo asociados a tu cuenta."
           eyebrow="Inicio"
           title={firstName ? `Hola, ${firstName}` : 'Bienvenido'}
         />
         {error ? <StatusMessage message={error} /> : null}
         <SurfaceCard style={styles.primaryCard}>
           <View style={styles.cardCopy}>
-            <ThemedText style={styles.cardTitle}>Mis barberías</ThemedText>
+            <ThemedText style={styles.cardTitle}>Reservar una cita</ThemedText>
+            <ThemedText style={styles.cardDescription} themeColor="textSecondary">
+              Explora barberías publicadas, combina servicios y elige un turno real.
+            </ThemedText>
+          </View>
+          <ActionButton
+            label="Explorar barberías"
+            onPress={() => router.push('/explore' as Href)}
+          />
+          <ActionButton
+            label="Mis reservas"
+            onPress={() => router.push('/reservations' as Href)}
+            variant="secondary"
+          />
+        </SurfaceCard>
+        <SurfaceCard style={styles.secondaryCard}>
+          <View style={styles.cardCopy}>
+            <ThemedText style={styles.cardTitle}>Espacios de trabajo</ThemedText>
             <ThemedText style={styles.cardDescription} themeColor="textSecondary">
               Entra a tu espacio operativo como barbero o a la administración cuando corresponda.
             </ThemedText>
@@ -52,17 +69,17 @@ export function AuthenticatedHomeScreen() {
             </ThemedText>
           </View>
           <ActionButton
-            label="Ir a mi perfil"
-            onPress={() => router.push('/profile')}
-            variant="secondary"
-          />
-          <ActionButton
             label={
               pendingInvitationCount > 0
                 ? `Invitaciones (${pendingInvitationCount})`
                 : 'Invitaciones'
             }
             onPress={() => router.push('/invitations' as Href)}
+            variant="secondary"
+          />
+          <ActionButton
+            label="Ir a mi perfil"
+            onPress={() => router.push('/profile')}
             variant="secondary"
           />
           {invitationCountError ? (

@@ -11,10 +11,11 @@ import { ThemedText } from '@/shared/components/ui/themed-text';
 import { ThemedView } from '@/shared/components/ui/themed-view';
 import { useTheme } from '@/theme/hooks/use-theme';
 import { Spacing } from '@/theme/spacing';
-import { Layout, Radius, TypeScale } from '@/theme/tokens';
+import { Layout, TypeScale } from '@/theme/tokens';
 
 import { useBarbershopDetail } from '../hooks/use-barbershop-detail';
 import { getMembershipRoleLabel } from '../mappers';
+import { BarbershopPublicationCard } from './barbershop-publication-card';
 import { BarbershopStatusBadge } from './barbershop-status-badge';
 
 function DetailRow({
@@ -40,19 +41,6 @@ function DetailRow({
       </ThemedText>
       <ThemedText selectable style={styles.detailValue}>
         {value}
-      </ThemedText>
-    </View>
-  );
-}
-
-function PreparationItem({ children }: { children: string }) {
-  const theme = useTheme();
-
-  return (
-    <View style={styles.preparationItem}>
-      <View style={[styles.preparationDot, { backgroundColor: theme.primary }]} />
-      <ThemedText style={styles.preparationText} themeColor="textSecondary">
-        {children}
       </ThemedText>
     </View>
   );
@@ -155,22 +143,18 @@ export function BarbershopDetailScreen({ barbershopId }: { barbershopId: string 
               />
             </SurfaceCard>
             <OwnBarberProfileCard barbershopId={barbershopId} />
+            {detail.publicationReadiness ? (
+              <BarbershopPublicationCard
+                barbershopId={barbershopId}
+                onRefresh={reload}
+                readiness={detail.publicationReadiness}
+                status={detail.barbershop.status}
+              />
+            ) : null}
           </>
         ) : (
           <OwnBarberProfileCard barbershopId={barbershopId} />
         )}
-
-        <SurfaceCard style={styles.card}>
-          <View style={styles.sectionCopy}>
-            <ThemedText style={styles.sectionTitle}>Preparación para publicar</ThemedText>
-            <ThemedText style={styles.sectionDescription} themeColor="textSecondary">
-              La publicación se habilitará cuando los siguientes módulos estén disponibles.
-            </ThemedText>
-          </View>
-          <PreparationItem>Horario general configurado</PreparationItem>
-          <PreparationItem>Al menos un servicio activo</PreparationItem>
-          <PreparationItem>Al menos un barbero activo con disponibilidad</PreparationItem>
-        </SurfaceCard>
       </ScrollView>
     </ThemedView>
   );
@@ -224,21 +208,5 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: TypeScale.body,
     lineHeight: 24,
-  },
-  preparationItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.three,
-  },
-  preparationDot: {
-    width: 8,
-    height: 8,
-    marginTop: Spacing.two,
-    borderRadius: Radius.pill,
-  },
-  preparationText: {
-    flex: 1,
-    fontSize: TypeScale.label,
-    lineHeight: 21,
   },
 });

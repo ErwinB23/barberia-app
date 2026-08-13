@@ -1,5 +1,7 @@
 import type { Enums, Tables } from '../../infrastructure/supabase/database.types.ts';
 
+import type { PublicationRequirement } from './publication';
+
 export type BarbershopStatus = Enums<'barbershop_status'>;
 export type MembershipRole = Enums<'membership_role'>;
 export type LateCancellationRefundPolicy = Enums<'late_cancellation_refund_policy'>;
@@ -50,4 +52,5 @@ export type YapeSettings = Pick<
 
 export type BarbershopDetail = UserBarbershop & {
   settings: BarbershopSettings | null;
+  publicationReadiness: PublicationRequirement[] | null;
 };
