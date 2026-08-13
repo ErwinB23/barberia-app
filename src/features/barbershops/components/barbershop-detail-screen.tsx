@@ -127,6 +127,11 @@ export function BarbershopDetailScreen({ barbershopId }: { barbershopId: string 
                 variant="secondary"
               />
               <ActionButton
+                label="Agenda y pagos"
+                onPress={() => router.push(`/barbershops/${barbershopId}/appointments`)}
+                variant="secondary"
+              />
+              <ActionButton
                 label="Horarios y cierres"
                 onPress={() => router.push(`/barbershops/${barbershopId}/schedules`)}
                 variant="secondary"

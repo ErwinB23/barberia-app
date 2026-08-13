@@ -6,9 +6,11 @@ const reservationDomain = await import('./reservation-domain.ts').catch(() => ({
 test('mapea estados de reserva y pago a textos comprensibles en español', () => {
   assert.equal(typeof reservationDomain.getReservationStatusLabel, 'function');
   assert.equal(typeof reservationDomain.getPaymentStatusLabel, 'function');
+  assert.equal(typeof reservationDomain.getPaymentMethodLabel, 'function');
   if (
     typeof reservationDomain.getReservationStatusLabel !== 'function' ||
-    typeof reservationDomain.getPaymentStatusLabel !== 'function'
+    typeof reservationDomain.getPaymentStatusLabel !== 'function' ||
+    typeof reservationDomain.getPaymentMethodLabel !== 'function'
   ) {
     return;
   }
@@ -21,6 +23,9 @@ test('mapea estados de reserva y pago a textos comprensibles en español', () =>
   assert.equal(reservationDomain.getPaymentStatusLabel('pending'), 'Pendiente');
   assert.equal(reservationDomain.getPaymentStatusLabel('paid'), 'Pagado');
   assert.equal(reservationDomain.getPaymentStatusLabel('refunded'), 'Reembolsado');
+  assert.equal(reservationDomain.getPaymentStatusLabel('failed'), 'Fallido');
+  assert.equal(reservationDomain.getPaymentMethodLabel('cash'), 'Efectivo');
+  assert.equal(reservationDomain.getPaymentMethodLabel('yape'), 'Yape');
 });
 
 test('solo permite mostrar reprogramación una vez para reservas confirmadas futuras', () => {

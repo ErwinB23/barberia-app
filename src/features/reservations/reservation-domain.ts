@@ -1,6 +1,7 @@
 import type { Database } from '@/infrastructure/supabase/database.types';
 
 type ReservationStatus = Database['public']['Enums']['reservation_status'];
+type PaymentMethod = Database['public']['Enums']['payment_method'];
 type PaymentStatus = Database['public']['Enums']['payment_status'];
 
 type ActionableReservation = {
@@ -31,12 +32,21 @@ const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   failed: 'Fallido',
 };
 
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: 'Efectivo',
+  yape: 'Yape',
+};
+
 export function getReservationStatusLabel(status: ReservationStatus) {
   return RESERVATION_STATUS_LABELS[status];
 }
 
 export function getPaymentStatusLabel(status: PaymentStatus) {
   return PAYMENT_STATUS_LABELS[status];
+}
+
+export function getPaymentMethodLabel(method: PaymentMethod) {
+  return PAYMENT_METHOD_LABELS[method];
 }
 
 export function canCancelReservation(reservation: ActionableReservation, now = new Date()) {

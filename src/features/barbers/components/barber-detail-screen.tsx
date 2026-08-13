@@ -113,6 +113,15 @@ export function BarberDetailScreen({
               <ThemedText style={styles.sectionTitle}>
                 {isOwnProfile ? 'Mi espacio operativo' : 'Operación'}
               </ThemedText>
+              {isOwnProfile ? (
+                <ActionButton
+                  label="Mi agenda"
+                  onPress={() =>
+                    router.push(`/barbershops/${barbershopId}/barbers/${barber.id}/appointments`)
+                  }
+                  variant="secondary"
+                />
+              ) : null}
               <ActionButton
                 label={isOwnProfile ? 'Mis servicios' : 'Servicios asignados'}
                 onPress={() =>

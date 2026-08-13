@@ -1,7 +1,16 @@
 import { supabase } from '@/infrastructure/supabase/client';
 import type { Database } from '@/infrastructure/supabase/database.types';
 
-import type { ClientReservation, ClientReservationItem, ClientReservationPayment } from './types';
+import type {
+  AppointmentBarberOption,
+  ClientReservation,
+  ClientReservationItem,
+  ClientReservationPayment,
+  ClientYapeSettings,
+  OperationalAgenda,
+  OperationalAppointment,
+  OperationalRole,
+} from './types';
 
 type ReservationRow = Database['public']['Tables']['reservations']['Row'];
 
@@ -154,6 +163,7 @@ async function enrichReservations(
     cancelledAt: row.cancelled_at,
     items: itemsByReservation.get(row.id) ?? [],
     payment: paymentsByReservation.get(row.id) ?? null,
+    yapeSettings: null,
   }));
 }
 
@@ -163,5 +173,160 @@ export async function getClientReservations(userId: string) {
 
 export async function getClientReservation(userId: string, reservationId: string) {
   const reservations = await enrichReservations(await getReservationRows(userId, reservationId));
-  return reservations[0] ?? null;
+  const reservation = reservations[0];
+  if (!reservation || reservation.payment?.method !== 'yape') return reservation ?? null;
+
+  const { data, error } = await supabase
+    .rpc('get_reservation_yape_settings', { p_reservation_id: reservation.id })
+    .maybeSingle();
+  if (error) throw error;
+
+  const yapeSettings: ClientYapeSettings | null = data
+    ? {
+        holderName: data.yape_holder_name,
+        phone: data.yape_phone,
+        qrUrl: data.yape_qr_url,
+      }
+    : null;
+  return { ...reservation, yapeSettings };
+}
+
+async function getOperationalRole(
+  userId: string,
+  barbershopId: string,
+  barberId: string | null,
+): Promise<OperationalRole | null> {
+  const { data: membership, error: membershipError } = await supabase
+    .from('barbershop_memberships')
+    .select('role')
+    .eq('barbershop_id', barbershopId)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (membershipError) throw membershipError;
+
+  if (!membership) return null;
+  if (!barberId) return membership.role === 'administrator' ? 'administrator' : null;
+
+  const { data: ownProfile, error: ownProfileError } = await supabase
+    .rpc('get_own_barber_profile', { p_barbershop_id: barbershopId })
+    .maybeSingle();
+  if (ownProfileError) throw ownProfileError;
+
+  return ownProfile?.barber_id === barberId && ownProfile.is_active ? 'barber' : null;
+}
+
+async function getOperationalRows(barbershopId: string, barberId: string | null, id?: string) {
+  let query = supabase
+    .from('reservations')
+    .select(RESERVATION_COLUMNS)
+    .eq('barbershop_id', barbershopId)
+    .order('starts_at', { ascending: false })
+    .limit(300);
+
+  if (barberId) query = query.eq('barber_id', barberId);
+  if (id) query = query.eq('id', id);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}
+
+async function getReservationClientContacts(reservationIds: string[]) {
+  const contacts = await Promise.all(
+    reservationIds.map(async (reservationId) => {
+      const { data, error } = await supabase
+        .rpc('get_reservation_client_contact', { p_reservation_id: reservationId })
+        .maybeSingle();
+      if (error) throw error;
+
+      return [
+        reservationId,
+        {
+          fullName: data?.full_name ?? null,
+          phone: data?.phone ?? null,
+        },
+      ] as const;
+    }),
+  );
+
+  return new Map(contacts);
+}
+
+async function enrichOperationalAppointments(
+  rows: Awaited<ReturnType<typeof getOperationalRows>>,
+): Promise<OperationalAppointment[]> {
+  const reservationIds = rows.map((row) => row.id);
+  const [names, itemsByReservation, paymentsByReservation, contactsByReservation] =
+    await Promise.all([
+      getVisibleNames(rows),
+      getReservationItems(reservationIds),
+      getReservationPayments(reservationIds),
+      getReservationClientContacts(reservationIds),
+    ]);
+
+  return rows.map((row) => ({
+    id: row.id,
+    barbershopId: row.barbershop_id,
+    barbershopName: names.barbershopNames.get(row.barbershop_id) ?? 'Barbería',
+    barberId: row.barber_id,
+    barberName: names.barberNames.get(row.barber_id) ?? 'Barbero asignado',
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    status: row.status,
+    totalPrice: Number(row.total_price),
+    totalDurationMinutes: row.total_duration_minutes,
+    isRefundEligible: row.is_refund_eligible,
+    clientContact: contactsByReservation.get(row.id) ?? { fullName: null, phone: null },
+    items: itemsByReservation.get(row.id) ?? [],
+    payment: paymentsByReservation.get(row.id) ?? null,
+  }));
+}
+
+async function getAppointmentBarbers(
+  barbershopId: string,
+  barberId: string | null,
+): Promise<AppointmentBarberOption[]> {
+  let query = supabase
+    .from('barbers')
+    .select('id, display_name')
+    .eq('barbershop_id', barbershopId)
+    .order('display_name');
+
+  if (barberId) query = query.eq('id', barberId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data.map((barber) => ({ id: barber.id, displayName: barber.display_name }));
+}
+
+export async function getOperationalAgenda(input: {
+  userId: string;
+  barbershopId: string;
+  barberId: string | null;
+}): Promise<OperationalAgenda | null> {
+  const role = await getOperationalRole(input.userId, input.barbershopId, input.barberId);
+  if (!role) return null;
+
+  const [appointments, barbers] = await Promise.all([
+    getOperationalRows(input.barbershopId, input.barberId).then(enrichOperationalAppointments),
+    getAppointmentBarbers(input.barbershopId, input.barberId),
+  ]);
+  return { role, appointments, barbers };
+}
+
+export async function getOperationalAppointment(input: {
+  userId: string;
+  barbershopId: string;
+  barberId: string | null;
+  reservationId: string;
+}): Promise<{ role: OperationalRole; appointment: OperationalAppointment } | null> {
+  const role = await getOperationalRole(input.userId, input.barbershopId, input.barberId);
+  if (!role) return null;
+
+  const appointments = await enrichOperationalAppointments(
+    await getOperationalRows(input.barbershopId, input.barberId, input.reservationId),
+  );
+  const appointment = appointments[0];
+  return appointment ? { role, appointment } : null;
 }

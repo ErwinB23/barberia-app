@@ -19,9 +19,9 @@ import { getClientReservation } from '../queries';
 import {
   canCancelReservation,
   canRescheduleReservation,
-  getPaymentStatusLabel,
   getReservationStatusLabel,
 } from '../reservation-domain';
+import { ClientReservationPaymentCard } from './client-reservation-payment-card';
 
 export function ReservationDetailScreen({
   reservationId,
@@ -125,32 +125,7 @@ export function ReservationDetailScreen({
           ))}
         </SurfaceCard>
 
-        <SurfaceCard style={styles.card}>
-          <ThemedText style={styles.sectionTitle}>Pago</ThemedText>
-          {data.payment ? (
-            <>
-              <DetailLine
-                label="Método"
-                value={data.payment.method === 'cash' ? 'Efectivo' : 'Yape'}
-              />
-              <DetailLine label="Estado" value={getPaymentStatusLabel(data.payment.status)} />
-              <DetailLine label="Importe" value={formatPen(data.payment.amount)} />
-            </>
-          ) : (
-            <ThemedText themeColor="textSecondary">
-              No hay información de pago disponible.
-            </ThemedText>
-          )}
-          {data.status === 'cancelled' ? (
-            <ThemedText style={styles.policyNote} themeColor="textSecondary">
-              {data.isLateCancellation
-                ? data.isRefundEligible
-                  ? 'La cancelación fue tardía, pero el snapshot de política marca el pago como elegible para reembolso. El estado final lo gestiona un administrador.'
-                  : 'La cancelación fue tardía y el snapshot de política no considera el pago elegible para reembolso.'
-                : 'La cancelación no fue tardía. Consulta el estado del pago para confirmar si el reembolso ya fue procesado.'}
-            </ThemedText>
-          ) : null}
-        </SurfaceCard>
+        <ClientReservationPaymentCard onRefresh={reload} reservation={data} />
 
         {showCancelConfirmation ? (
           <SurfaceCard style={styles.warningCard}>
@@ -223,5 +198,4 @@ const styles = StyleSheet.create({
   itemCopy: { flex: 1, gap: Spacing.one },
   itemName: { fontWeight: '700' },
   itemMeta: { alignItems: 'flex-end', gap: Spacing.one },
-  policyNote: { fontSize: TypeScale.label, lineHeight: 21 },
 });
