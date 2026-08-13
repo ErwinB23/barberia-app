@@ -1107,6 +1107,21 @@ export type Database = {
           starts_at: string;
         }[];
       };
+      get_reservation_client_contact: {
+        Args: { p_reservation_id: string };
+        Returns: {
+          full_name: string;
+          phone: string;
+        }[];
+      };
+      get_reservation_yape_settings: {
+        Args: { p_reservation_id: string };
+        Returns: {
+          yape_holder_name: string;
+          yape_phone: string;
+          yape_qr_url: string;
+        }[];
+      };
       mark_no_show: { Args: { p_reservation_id: string }; Returns: undefined };
       pause_barbershop: {
         Args: { p_barbershop_id: string };

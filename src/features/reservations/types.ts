@@ -24,6 +24,12 @@ export type ClientReservationPayment = {
   refundedAt: string | null;
 };
 
+export type ClientYapeSettings = {
+  holderName: string | null;
+  phone: string | null;
+  qrUrl: string | null;
+};
+
 export type ClientReservation = {
   id: string;
   barbershopId: string;
@@ -43,4 +49,38 @@ export type ClientReservation = {
   cancelledAt: string | null;
   items: ClientReservationItem[];
   payment: ClientReservationPayment | null;
+  yapeSettings: ClientYapeSettings | null;
+};
+
+export type OperationalRole = 'barber' | 'administrator';
+
+export type OperationalAppointment = {
+  id: string;
+  barbershopId: string;
+  barbershopName: string;
+  barberId: string;
+  barberName: string;
+  startsAt: string;
+  endsAt: string;
+  status: ReservationStatus;
+  totalPrice: number;
+  totalDurationMinutes: number;
+  isRefundEligible: boolean;
+  clientContact: {
+    fullName: string | null;
+    phone: string | null;
+  };
+  items: ClientReservationItem[];
+  payment: ClientReservationPayment | null;
+};
+
+export type AppointmentBarberOption = {
+  id: string;
+  displayName: string;
+};
+
+export type OperationalAgenda = {
+  role: OperationalRole;
+  appointments: OperationalAppointment[];
+  barbers: AppointmentBarberOption[];
 };
