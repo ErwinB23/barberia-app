@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
 
+import { FavoriteBarbershopControls } from '@/features/favorites/components/favorite-barbershop-controls';
 import { ActionButton } from '@/shared/components/ui/action-button';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
@@ -72,6 +73,8 @@ export function PublicBarbershopDetailScreen({ barbershopId }: { barbershopId: s
             onPress={() => router.push(`/booking/${barbershop.id}` as Href)}
           />
         )}
+
+        <FavoriteBarbershopControls barbershopId={barbershop.id} />
 
         <SurfaceCard style={styles.card}>
           <ThemedText style={styles.sectionTitle}>Información</ThemedText>

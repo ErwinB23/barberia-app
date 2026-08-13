@@ -4,6 +4,7 @@ import { router, type Href } from 'expo-router';
 import { useAuth } from '@/features/auth/hooks/use-auth';
 import { useProfile } from '@/features/profile/hooks/use-profile';
 import { usePendingInvitationCount } from '@/features/invitations/hooks/use-pending-invitation-count';
+import { useUnreadNotificationCount } from '@/features/notifications/hooks/use-unread-notification-count';
 import { ActionButton } from '@/shared/components/ui/action-button';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
@@ -19,6 +20,8 @@ export function AuthenticatedHomeScreen() {
   const { count: pendingInvitationCount, error: invitationCountError } = usePendingInvitationCount(
     user?.id ?? null,
   );
+  const { count: unreadNotificationCount, error: notificationCountError } =
+    useUnreadNotificationCount(user?.id ?? null);
   const firstName = profile?.fullName?.trim().split(/\s+/)[0];
 
   return (
@@ -46,6 +49,11 @@ export function AuthenticatedHomeScreen() {
             onPress={() => router.push('/reservations' as Href)}
             variant="secondary"
           />
+          <ActionButton
+            label="Favoritas"
+            onPress={() => router.push('/favorites' as Href)}
+            variant="secondary"
+          />
         </SurfaceCard>
         <SurfaceCard style={styles.secondaryCard}>
           <View style={styles.cardCopy}>
@@ -70,6 +78,15 @@ export function AuthenticatedHomeScreen() {
           </View>
           <ActionButton
             label={
+              unreadNotificationCount > 0
+                ? `Notificaciones (${unreadNotificationCount})`
+                : 'Notificaciones'
+            }
+            onPress={() => router.push('/notifications' as Href)}
+            variant="secondary"
+          />
+          <ActionButton
+            label={
               pendingInvitationCount > 0
                 ? `Invitaciones (${pendingInvitationCount})`
                 : 'Invitaciones'
@@ -84,6 +101,9 @@ export function AuthenticatedHomeScreen() {
           />
           {invitationCountError ? (
             <StatusMessage message="No pudimos consultar el contador de invitaciones." />
+          ) : null}
+          {notificationCountError ? (
+            <StatusMessage message="No pudimos consultar el contador de notificaciones." />
           ) : null}
         </SurfaceCard>
       </ScrollView>

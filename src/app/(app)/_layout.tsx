@@ -17,6 +17,8 @@ export default function AppLayout() {
       <Stack.Screen name="index" options={{ title: 'Inicio' }} />
       <Stack.Screen name="profile" options={{ title: 'Mi perfil' }} />
       <Stack.Screen name="invitations" options={{ title: 'Mis invitaciones' }} />
+      <Stack.Screen name="favorites" options={{ title: 'Favoritas' }} />
+      <Stack.Screen name="notifications" options={{ title: 'Notificaciones' }} />
       <Stack.Screen name="explore" options={{ headerShown: false }} />
       <Stack.Screen name="booking" options={{ headerShown: false }} />
       <Stack.Screen name="reservations" options={{ headerShown: false }} />
