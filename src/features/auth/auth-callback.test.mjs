@@ -44,6 +44,38 @@ test('reconoce confirmación de email y código PKCE para completar el acceso', 
   assert.equal(getAuthCallbackDestination(confirmation.intent), '/');
 });
 
+test('completa el callback de Google sin alterar confirmación ni recuperación', async () => {
+  const google = parseAuthCallbackUrl(
+    'https://app.example.com/auth/callback?source=google&code=google-code',
+  );
+  const confirmation = parseAuthCallbackUrl(
+    'https://app.example.com/auth/callback?code=confirmation-code&type=signup',
+  );
+  const recovery = parseAuthCallbackUrl(
+    'barberiaapp://auth/callback?source=google&code=recovery-code&type=recovery',
+  );
+
+  assert.equal(google.kind, 'code');
+  assert.equal(google.intent, 'oauth-sign-in');
+  assert.equal(confirmation.kind, 'code');
+  assert.equal(confirmation.intent, 'complete-sign-in');
+  assert.equal(recovery.kind, 'code');
+  assert.equal(recovery.intent, 'password-recovery');
+  assert.equal(getAuthCallbackDestination(google.intent), '/');
+
+  const exchangedCodes = [];
+  const intent = await completeAuthCallback(
+    'https://app.example.com/auth/callback?source=google&code=google-code',
+    {
+      exchangeCodeForSession: async (code) => exchangedCodes.push(code),
+      setSession: async () => undefined,
+    },
+  );
+
+  assert.equal(intent, 'oauth-sign-in');
+  assert.deepEqual(exchangedCodes, ['google-code']);
+});
+
 test('distingue un callback vacío de un enlace real incompleto', () => {
   assert.deepEqual(parseAuthCallbackUrl('barberiaapp://auth/callback'), { kind: 'empty' });
   assert.deepEqual(parseAuthCallbackUrl('https://app.example.com/auth/callback?source=manual'), {

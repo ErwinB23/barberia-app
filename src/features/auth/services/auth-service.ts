@@ -1,7 +1,9 @@
 import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 
 import { completeAuthCallbackOnce, type AuthCallbackIntent } from '@/features/auth/auth-callback';
 import { requiresEmailConfirmation } from '@/features/auth/auth-flow';
+import { startGoogleOAuth, type GoogleOAuthPlatform } from '@/features/auth/google-oauth';
 import { supabase } from '@/infrastructure/supabase/client';
 
 import type { SignInInput, SignUpInput, SignUpResult } from '@/features/auth/types';
@@ -19,6 +21,15 @@ export async function signInWithPassword(input: SignInInput) {
   if (error) {
     throw error;
   }
+}
+
+export async function signInWithGoogle() {
+  const platform: GoogleOAuthPlatform = process.env.EXPO_OS === 'web' ? 'web' : 'native';
+
+  return startGoogleOAuth(platform, getAuthCallbackUrl(), {
+    signInWithOAuth: (credentials) => supabase.auth.signInWithOAuth(credentials),
+    openAuthSessionAsync: WebBrowser.openAuthSessionAsync,
+  });
 }
 
 export async function signUpWithPassword(input: SignUpInput): Promise<SignUpResult> {

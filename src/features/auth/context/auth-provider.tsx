@@ -6,6 +6,7 @@ import { AuthContext } from '@/features/auth/context/auth-context';
 import { useAuthAutoRefresh } from '@/features/auth/hooks/use-auth-auto-refresh';
 import {
   requestPasswordResetEmail,
+  signInWithGoogle,
   signInWithPassword,
   signOutCurrentSession,
   signUpWithPassword,
@@ -74,6 +75,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await signInWithPassword(input);
   }, []);
 
+  const signInGoogle = useCallback(async () => signInWithGoogle(), []);
+
   const signUp = useCallback(async (input: SignUpInput) => {
     return signUpWithPassword(input);
   }, []);
@@ -97,6 +100,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isLoading,
       initializationError,
       signIn,
+      signInWithGoogle: signInGoogle,
       signUp,
       requestPasswordReset,
       updatePassword,
@@ -108,6 +112,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       requestPasswordReset,
       session,
       signIn,
+      signInGoogle,
       signOut,
       signUp,
       updatePassword,

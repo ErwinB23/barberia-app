@@ -1,5 +1,7 @@
 import type { Session, User } from '@supabase/supabase-js';
 
+import type { GoogleOAuthResult } from '@/features/auth/google-oauth';
+
 export type SignInInput = {
   email: string;
   password: string;
@@ -20,6 +22,7 @@ export type AuthContextValue = {
   isLoading: boolean;
   initializationError: string | null;
   signIn: (input: SignInInput) => Promise<void>;
+  signInWithGoogle: () => Promise<GoogleOAuthResult>;
   signUp: (input: SignUpInput) => Promise<SignUpResult>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
