@@ -17,6 +17,16 @@ type GroupableReservation = ActionableReservation & {
   id: string;
 };
 
+type ReservationDescriptionSnapshots = {
+  barbershop_name_snapshot: string;
+  barber_display_name_snapshot: string;
+};
+
+type ReservationServiceDescriptionSnapshots = {
+  service_name_snapshot: string;
+  style_name_snapshot: string | null;
+};
+
 const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
   confirmed: 'Confirmada',
   in_progress: 'En atención',
@@ -47,6 +57,22 @@ export function getPaymentStatusLabel(status: PaymentStatus) {
 
 export function getPaymentMethodLabel(method: PaymentMethod) {
   return PAYMENT_METHOD_LABELS[method];
+}
+
+export function mapReservationDescriptionSnapshots(row: ReservationDescriptionSnapshots) {
+  return {
+    barbershopName: row.barbershop_name_snapshot,
+    barberName: row.barber_display_name_snapshot,
+  };
+}
+
+export function mapReservationServiceDescriptionSnapshots(
+  row: ReservationServiceDescriptionSnapshots,
+) {
+  return {
+    serviceName: row.service_name_snapshot,
+    styleName: row.style_name_snapshot,
+  };
 }
 
 export function canCancelReservation(reservation: ActionableReservation, now = new Date()) {
