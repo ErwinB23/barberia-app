@@ -100,3 +100,35 @@ test('permite cancelar únicamente reservas confirmadas futuras', () => {
     false,
   );
 });
+
+test('mapea descripciones historicas exclusivamente desde snapshots', () => {
+  assert.equal(typeof reservationDomain.mapReservationDescriptionSnapshots, 'function');
+  assert.equal(typeof reservationDomain.mapReservationServiceDescriptionSnapshots, 'function');
+  if (
+    typeof reservationDomain.mapReservationDescriptionSnapshots !== 'function' ||
+    typeof reservationDomain.mapReservationServiceDescriptionSnapshots !== 'function'
+  ) {
+    return;
+  }
+
+  assert.deepEqual(
+    reservationDomain.mapReservationDescriptionSnapshots({
+      barbershop_name_snapshot: 'Barbería original',
+      barber_display_name_snapshot: 'Barbero original',
+    }),
+    {
+      barbershopName: 'Barbería original',
+      barberName: 'Barbero original',
+    },
+  );
+  assert.deepEqual(
+    reservationDomain.mapReservationServiceDescriptionSnapshots({
+      service_name_snapshot: 'Servicio original',
+      style_name_snapshot: 'Estilo original',
+    }),
+    {
+      serviceName: 'Servicio original',
+      styleName: 'Estilo original',
+    },
+  );
+});

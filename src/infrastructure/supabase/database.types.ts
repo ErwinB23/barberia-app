@@ -750,7 +750,9 @@ export type Database = {
           price_at_booking: number;
           reservation_id: string;
           service_id: string;
+          service_name_snapshot: string;
           style_id: string | null;
+          style_name_snapshot: string | null;
         };
         Insert: {
           barbershop_id: string;
@@ -760,7 +762,9 @@ export type Database = {
           price_at_booking: number;
           reservation_id: string;
           service_id: string;
+          service_name_snapshot: string;
           style_id?: string | null;
+          style_name_snapshot?: string | null;
         };
         Update: {
           barbershop_id?: string;
@@ -770,7 +774,9 @@ export type Database = {
           price_at_booking?: number;
           reservation_id?: string;
           service_id?: string;
+          service_name_snapshot?: string;
           style_id?: string | null;
+          style_name_snapshot?: string | null;
         };
         Relationships: [
           {
@@ -798,8 +804,10 @@ export type Database = {
       };
       reservations: {
         Row: {
+          barber_display_name_snapshot: string;
           barber_id: string;
           barbershop_id: string;
+          barbershop_name_snapshot: string;
           buffer_minutes_at_booking: number;
           cancelled_at: string | null;
           cancelled_by: string | null;
@@ -827,8 +835,10 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          barber_display_name_snapshot: string;
           barber_id: string;
           barbershop_id: string;
+          barbershop_name_snapshot: string;
           buffer_minutes_at_booking: number;
           cancelled_at?: string | null;
           cancelled_by?: string | null;
@@ -856,8 +866,10 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          barber_display_name_snapshot?: string;
           barber_id?: string;
           barbershop_id?: string;
+          barbershop_name_snapshot?: string;
           buffer_minutes_at_booking?: number;
           cancelled_at?: string | null;
           cancelled_by?: string | null;
