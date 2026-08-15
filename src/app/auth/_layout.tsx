@@ -2,11 +2,7 @@ import { Stack } from 'expo-router/stack';
 
 import { useTheme } from '@/theme/hooks/use-theme';
 
-export const unstable_settings = {
-  anchor: 'login',
-};
-
-export default function AuthLayout() {
+export default function AuthCallbackLayout() {
   const theme = useTheme();
 
   return (
@@ -18,9 +14,8 @@ export default function AuthLayout() {
         headerTintColor: theme.text,
       }}
     >
-      <Stack.Screen name="login" options={{ title: 'Iniciar sesión' }} />
-      <Stack.Screen name="register" options={{ title: 'Crear cuenta' }} />
-      <Stack.Screen name="forgot-password" options={{ title: 'Recuperar contraseña' }} />
+      <Stack.Screen name="callback" options={{ headerShown: false }} />
+      <Stack.Screen name="reset-password" options={{ title: 'Nueva contraseña' }} />
     </Stack>
   );
 }

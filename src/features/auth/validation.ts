@@ -9,8 +9,17 @@ export type RegisterFormValues = LoginFormValues & {
   passwordConfirmation: string;
 };
 
+export type RecoveryRequestFormValues = Pick<LoginFormValues, 'email'>;
+
+export type NewPasswordFormValues = {
+  password: string;
+  passwordConfirmation: string;
+};
+
 export type LoginFormErrors = Partial<Record<keyof LoginFormValues, string>>;
 export type RegisterFormErrors = Partial<Record<keyof RegisterFormValues, string>>;
+export type RecoveryRequestFormErrors = Partial<Record<keyof RecoveryRequestFormValues, string>>;
+export type NewPasswordFormErrors = Partial<Record<keyof NewPasswordFormValues, string>>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+?[0-9()\-\s]+$/;
@@ -29,6 +38,14 @@ export function normalizeLoginInput(values: LoginFormValues): LoginFormValues {
   return {
     email: values.email.trim().toLowerCase(),
     password: values.password,
+  };
+}
+
+export function normalizeRecoveryRequestInput(
+  values: RecoveryRequestFormValues,
+): RecoveryRequestFormValues {
+  return {
+    email: values.email.trim().toLowerCase(),
   };
 }
 
@@ -52,6 +69,32 @@ export function validateLoginForm(values: LoginFormValues): LoginFormErrors {
 
   if (!values.password) {
     errors.password = 'Ingresa tu contraseña.';
+  }
+
+  return errors;
+}
+
+export function validateRecoveryRequestForm(
+  values: RecoveryRequestFormValues,
+): RecoveryRequestFormErrors {
+  const errors: RecoveryRequestFormErrors = {};
+
+  if (!EMAIL_PATTERN.test(values.email.trim())) {
+    errors.email = 'Ingresa un correo electrónico válido.';
+  }
+
+  return errors;
+}
+
+export function validateNewPasswordForm(values: NewPasswordFormValues): NewPasswordFormErrors {
+  const errors: NewPasswordFormErrors = {};
+
+  if (values.password.length < 8) {
+    errors.password = 'La contraseña debe tener al menos 8 caracteres.';
+  }
+
+  if (values.passwordConfirmation !== values.password) {
+    errors.passwordConfirmation = 'Las contraseñas no coinciden.';
   }
 
   return errors;
