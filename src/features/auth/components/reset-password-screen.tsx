@@ -2,6 +2,10 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
 import { getAuthErrorMessage } from '@/features/auth/auth-errors';
+import {
+  getPasswordResetDestination,
+  PASSWORD_RESET_SUCCESS_MESSAGE,
+} from '@/features/auth/auth-flow';
 import { AuthFooter } from '@/features/auth/components/auth-footer';
 import { AuthFormField } from '@/features/auth/components/auth-form-field';
 import { AuthScreen } from '@/features/auth/components/auth-screen';
@@ -18,6 +22,7 @@ export function ResetPasswordScreen() {
   const [errors, setErrors] = useState<NewPasswordFormErrors>({});
   const [requestError, setRequestError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
 
   const clearFieldError = (field: keyof NewPasswordFormErrors) => {
     setErrors((current) => ({ ...current, [field]: undefined }));
@@ -36,13 +41,28 @@ export function ResetPasswordScreen() {
 
     try {
       await updatePassword(password);
-      router.replace('/');
+      setIsComplete(true);
     } catch (error) {
       setRequestError(getAuthErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (isComplete) {
+    return (
+      <AuthScreen
+        description="Ya puedes continuar usando tu cuenta con la nueva contraseña."
+        title="Contraseña actualizada"
+      >
+        <StatusMessage message={PASSWORD_RESET_SUCCESS_MESSAGE} tone="success" />
+        <ActionButton
+          label="Continuar"
+          onPress={() => router.replace(getPasswordResetDestination(Boolean(session)))}
+        />
+      </AuthScreen>
+    );
+  }
 
   return (
     <AuthScreen

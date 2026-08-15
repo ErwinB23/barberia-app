@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 
-import { completeAuthCallback, type AuthCallbackIntent } from '@/features/auth/auth-callback';
+import { completeAuthCallbackOnce, type AuthCallbackIntent } from '@/features/auth/auth-callback';
 import { requiresEmailConfirmation } from '@/features/auth/auth-flow';
 import { supabase } from '@/infrastructure/supabase/client';
 
@@ -54,7 +54,7 @@ export async function requestPasswordResetEmail(email: string) {
 }
 
 export async function completeSupabaseAuthCallback(url: string): Promise<AuthCallbackIntent> {
-  return completeAuthCallback(url, {
+  return completeAuthCallbackOnce(url, {
     exchangeCodeForSession: async (code) => {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) throw error;
