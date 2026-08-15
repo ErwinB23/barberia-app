@@ -5,9 +5,11 @@ import { getAuthErrorMessage } from '@/features/auth/auth-errors';
 import { AuthContext } from '@/features/auth/context/auth-context';
 import { useAuthAutoRefresh } from '@/features/auth/hooks/use-auth-auto-refresh';
 import {
+  requestPasswordResetEmail,
   signInWithPassword,
   signOutCurrentSession,
   signUpWithPassword,
+  updateCurrentUserPassword,
 } from '@/features/auth/services/auth-service';
 import type { SignInInput, SignUpInput } from '@/features/auth/types';
 import { supabase } from '@/infrastructure/supabase/client';
@@ -76,6 +78,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return signUpWithPassword(input);
   }, []);
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    await requestPasswordResetEmail(email);
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    await updateCurrentUserPassword(password);
+  }, []);
+
   const signOut = useCallback(async () => {
     await signOutCurrentSession();
   }, []);
@@ -88,9 +98,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
       initializationError,
       signIn,
       signUp,
+      requestPasswordReset,
+      updatePassword,
       signOut,
     }),
-    [initializationError, isLoading, session, signIn, signOut, signUp],
+    [
+      initializationError,
+      isLoading,
+      requestPasswordReset,
+      session,
+      signIn,
+      signOut,
+      signUp,
+      updatePassword,
+    ],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

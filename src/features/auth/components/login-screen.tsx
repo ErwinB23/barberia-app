@@ -84,6 +84,11 @@ export function LoginScreen() {
         value={password}
       />
       <ActionButton isLoading={isSubmitting} label="Iniciar sesión" onPress={() => void submit()} />
+      <AuthFooter
+        href="./forgot-password"
+        label="Recuperar contraseña"
+        prompt="¿No recuerdas tu contraseña?"
+      />
       <AuthFooter href="./register" label="Crear cuenta" prompt="¿Aún no tienes una cuenta?" />
     </AuthScreen>
   );
