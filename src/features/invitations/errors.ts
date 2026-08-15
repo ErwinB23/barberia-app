@@ -11,12 +11,13 @@ const BY_OPERATION: Record<InvitationOperation, Record<string, string>> = {
   load: {},
   send: {
     '22023': 'Revisa el correo, el rol y el canal seleccionados.',
-    '23505': 'Ya existe una invitación pendiente para ese correo y rol.',
+    '23505':
+      'Ya existe una invitación pendiente o el usuario tiene un rol activo igual o superior.',
   },
   accept: {
     INVITATION_EXPIRED: 'La invitación venció antes de que pudiera aceptarse.',
     '22023': 'La invitación venció, ya fue respondida o los datos del perfil no son válidos.',
-    '23505': 'Ya eres miembro activo de esta barbería. La promoción de rol aún no está soportada.',
+    '23505': 'Ya tienes un rol activo igual o superior en esta barbería.',
   },
   reject: {
     '22023': 'La invitación venció o ya fue respondida.',

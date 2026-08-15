@@ -15,6 +15,7 @@ import { Layout, TypeScale } from '@/theme/tokens';
 import { acceptBarbershopInvitation, rejectBarbershopInvitation } from '../actions';
 import { getInvitationErrorMessage } from '../errors';
 import { useRecipientInvitations } from '../hooks/use-recipient-invitations';
+import { getInvitationAcceptanceFeedback } from '../invitation-domain';
 import type { RecipientInvitation } from '../types';
 import { InvitationCard } from './invitation-card';
 
@@ -35,11 +36,7 @@ export function RecipientInvitationsScreen() {
     try {
       if (response === 'accept') {
         await acceptBarbershopInvitation(invitation.id);
-        setFeedback(
-          invitation.role === 'barber'
-            ? 'Invitación aceptada. Tu membresía y perfil de barbero quedaron activos.'
-            : 'Invitación aceptada. Ya puedes administrar esta barbería.',
-        );
+        setFeedback(getInvitationAcceptanceFeedback(invitation.role));
       } else {
         await rejectBarbershopInvitation(invitation.id);
         setFeedback('La invitación fue procesada. Su estado actualizado aparece en la lista.');

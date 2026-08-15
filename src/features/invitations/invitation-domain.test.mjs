@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import * as invitationDomain from './invitation-domain.ts';
+import { getInvitationErrorMessage } from './errors.ts';
 
 test('expone únicamente roles, canales y estados soportados por la base', () => {
   assert.deepEqual(invitationDomain.INVITATION_ROLES, ['barber', 'administrator']);
@@ -92,4 +93,22 @@ test('habilita acciones solo para invitaciones pendientes y vigentes', () => {
     canReject: false,
     canCancel: false,
   });
+});
+
+test('comunica la aceptacion de una promocion sin perder el espacio operativo', () => {
+  assert.equal(
+    invitationDomain.getInvitationAcceptanceFeedback('administrator'),
+    'Invitación aceptada. Ya puedes administrar esta barbería. Si también trabajas como barbero, tu espacio operativo se conserva.',
+  );
+});
+
+test('una membresia activa redundante ya no se presenta como promocion no soportada', () => {
+  assert.equal(
+    getInvitationErrorMessage({ code: '23505' }, 'accept'),
+    'Ya tienes un rol activo igual o superior en esta barbería.',
+  );
+  assert.equal(
+    getInvitationErrorMessage({ code: '23505' }, 'send'),
+    'Ya existe una invitación pendiente o el usuario tiene un rol activo igual o superior.',
+  );
 });
