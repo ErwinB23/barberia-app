@@ -1,4 +1,4 @@
-export type AuthCallbackIntent = 'complete-sign-in' | 'password-recovery';
+export type AuthCallbackIntent = 'complete-sign-in' | 'oauth-sign-in' | 'password-recovery';
 
 export const AUTH_CALLBACK_COPY = {
   loading: {
@@ -69,8 +69,12 @@ const AUTH_CALLBACK_PARAMETER_NAMES = [
   'error_description',
 ] as const;
 
-function getCallbackIntent(type: string | null): AuthCallbackIntent {
-  return type === 'recovery' ? 'password-recovery' : 'complete-sign-in';
+function getCallbackIntent(type: string | null, source: string | null): AuthCallbackIntent {
+  if (type === 'recovery') {
+    return 'password-recovery';
+  }
+
+  return source === 'google' ? 'oauth-sign-in' : 'complete-sign-in';
 }
 
 export function parseAuthCallbackUrl(url: string): AuthCallbackParameters {
@@ -80,15 +84,16 @@ export function parseAuthCallbackUrl(url: string): AuthCallbackParameters {
     const fragmentParameters = new URLSearchParams(parsedUrl.hash.replace(/^#/, ''));
     const getParameter = (name: string) =>
       queryParameters.get(name) ?? fragmentParameters.get(name);
-    const hasAuthCallbackParameter = AUTH_CALLBACK_PARAMETER_NAMES.some(
-      (name) => queryParameters.has(name) || fragmentParameters.has(name),
-    );
+    const hasAuthCallbackParameter =
+      AUTH_CALLBACK_PARAMETER_NAMES.some(
+        (name) => queryParameters.has(name) || fragmentParameters.has(name),
+      ) || getParameter('source') === 'google';
 
     if (getParameter('error')) {
       return { kind: 'error', errorCode: getParameter('error_code') };
     }
 
-    const intent = getCallbackIntent(getParameter('type'));
+    const intent = getCallbackIntent(getParameter('type'), getParameter('source'));
     const code = getParameter('code');
 
     if (code) {
