@@ -52,6 +52,12 @@ const STATUS_LABELS: Record<InvitationStatus, string> = {
   cancelled: 'Cancelada',
 };
 
+const ACCEPTANCE_FEEDBACK: Record<InvitationRole, string> = {
+  barber: 'Invitación aceptada. Tu membresía y perfil de barbero quedaron activos.',
+  administrator:
+    'Invitación aceptada. Ya puedes administrar esta barbería. Si también trabajas como barbero, tu espacio operativo se conserva.',
+};
+
 export function isInvitationRole(value: string): value is InvitationRole {
   return INVITATION_ROLES.some((role) => role === value);
 }
@@ -70,6 +76,10 @@ export function getInvitationChannelLabel(channel: InvitationChannel) {
 
 export function getInvitationStatusLabel(status: InvitationStatus) {
   return STATUS_LABELS[status];
+}
+
+export function getInvitationAcceptanceFeedback(role: InvitationRole) {
+  return ACCEPTANCE_FEEDBACK[role];
 }
 
 export function parseInvitationForm(values: InvitationFormValues): {

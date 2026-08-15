@@ -141,14 +141,38 @@ select public.send_barbershop_invitation(
   'email'
 ) as unresolved_invitation_id \gset
 
-select public.send_barbershop_invitation(
-  '27000000-0000-0000-0000-000000000001',
-  'invitations.admin.a@test.local',
-  'barber',
-  'app'
-) as self_invitation_id \gset
-
 reset role;
+
+insert into public.barbershop_invitations (
+  barbershop_id,
+  invited_by,
+  role,
+  channel,
+  recipient_user_id,
+  email,
+  status,
+  expires_at
+)
+values (
+  '27000000-0000-0000-0000-000000000001',
+  '17000000-0000-0000-0000-000000000001',
+  'barber',
+  'app',
+  '17000000-0000-0000-0000-000000000001',
+  'invitations.admin.a@test.local',
+  'pending',
+  now() + interval '7 days'
+)
+returning id as self_invitation_id \gset
+
+select private.create_invitation_notification(
+  '17000000-0000-0000-0000-000000000001',
+  '27000000-0000-0000-0000-000000000001',
+  :'self_invitation_id'::uuid,
+  'invitation_received',
+  'Invitacion de prueba',
+  'Mensaje de prueba.'
+);
 
 select results_eq(
   format(
