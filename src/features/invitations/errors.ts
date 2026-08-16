@@ -1,4 +1,4 @@
-export type InvitationOperation = 'load' | 'send' | 'accept' | 'reject' | 'cancel';
+export type InvitationOperation = 'load' | 'send' | 'email' | 'accept' | 'reject' | 'cancel';
 
 const FALLBACK = 'No pudimos completar la operación. Inténtalo nuevamente.';
 
@@ -13,6 +13,10 @@ const BY_OPERATION: Record<InvitationOperation, Record<string, string>> = {
     '22023': 'Revisa el correo, el rol y el canal seleccionados.',
     '23505':
       'Ya existe una invitación pendiente o el usuario tiene un rol activo igual o superior.',
+  },
+  email: {
+    INVITATION_EMAIL_DELIVERY_FAILED:
+      'La invitación se guardó, pero el correo no pudo enviarse. Puedes reintentar sin crear otra invitación.',
   },
   accept: {
     INVITATION_EXPIRED: 'La invitación venció antes de que pudiera aceptarse.',
