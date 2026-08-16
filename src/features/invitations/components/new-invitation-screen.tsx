@@ -12,7 +12,7 @@ import { ThemedView } from '@/shared/components/ui/themed-view';
 import { Spacing } from '@/theme/spacing';
 import { Layout, TypeScale } from '@/theme/tokens';
 
-import { sendBarbershopInvitation } from '../actions';
+import { sendBarbershopInvitation, sendInvitationEmail } from '../actions';
 import { getInvitationErrorMessage } from '../errors';
 import { useInvitationAdminAccess } from '../hooks/use-invitation-admin-access';
 import {
@@ -56,12 +56,27 @@ export function NewInvitationScreen({ barbershopId }: { barbershopId: string | n
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [pendingEmailInvitationId, setPendingEmailInvitationId] = useState<string | null>(null);
 
   const setField = (field: keyof InvitationFormValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
     setMutationError(null);
     setFeedback(null);
+    setPendingEmailInvitationId(null);
+  };
+
+  const deliverEmail = async (invitationId: string) => {
+    try {
+      await sendInvitationEmail(invitationId);
+      setPendingEmailInvitationId(null);
+      setMutationError(null);
+      setFeedback('Invitación registrada y enviada por correo.');
+    } catch (deliveryError) {
+      setPendingEmailInvitationId(invitationId);
+      setMutationError(getInvitationErrorMessage(deliveryError, 'email'));
+      setFeedback('La invitación quedó registrada y continúa pendiente.');
+    }
   };
 
   const submit = async () => {
@@ -74,15 +89,29 @@ export function NewInvitationScreen({ barbershopId }: { barbershopId: string | n
     setMutationError(null);
     setFeedback(null);
     try {
-      await sendBarbershopInvitation(barbershopId, parsed.values);
+      const invitationId = await sendBarbershopInvitation(barbershopId, parsed.values);
       setValues((current) => ({ ...current, email: '' }));
-      setFeedback(
-        parsed.values.channel === 'email'
-          ? 'Invitación registrada. El envío físico por correo aún no está configurado.'
-          : 'Invitación registrada. Si la cuenta ya existe, también aparecerá dentro de la app.',
-      );
+      if (parsed.values.channel === 'email') {
+        await deliverEmail(invitationId);
+      } else {
+        setFeedback(
+          'Invitación registrada. Si la cuenta ya existe, también aparecerá dentro de la app.',
+        );
+      }
     } catch (mutation) {
       setMutationError(getInvitationErrorMessage(mutation, 'send'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const retryEmail = async () => {
+    if (!pendingEmailInvitationId) return;
+
+    setIsSubmitting(true);
+    setMutationError(null);
+    try {
+      await deliverEmail(pendingEmailInvitationId);
     } finally {
       setIsSubmitting(false);
     }
@@ -156,16 +185,24 @@ export function NewInvitationScreen({ barbershopId }: { barbershopId: string | n
               value={values.channel}
             />
             {values.channel === 'email' ? (
-              <StatusMessage message="Esta versión registra la invitación, pero todavía no envía un correo físico." />
+              <StatusMessage message="Enviaremos un correo con instrucciones para aceptar o rechazar la invitación desde la app." />
             ) : null}
             <ThemedText style={styles.privacy} themeColor="textSecondary">
               Por seguridad, la aplicación no confirmará si el correo ya tiene una cuenta.
             </ThemedText>
             {feedback ? <StatusMessage message={feedback} tone="success" /> : null}
             {mutationError ? <StatusMessage message={mutationError} /> : null}
+            {pendingEmailInvitationId ? (
+              <ActionButton
+                isLoading={isSubmitting}
+                label="Reintentar envío por email"
+                onPress={() => void retryEmail()}
+                variant="secondary"
+              />
+            ) : null}
             <ActionButton
               isLoading={isSubmitting}
-              label="Registrar invitación"
+              label="Enviar invitación"
               onPress={() => void submit()}
             />
             <ActionButton

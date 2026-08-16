@@ -7,6 +7,11 @@ const expiredInvitationError = () =>
     code: 'INVITATION_EXPIRED',
   });
 
+const invitationEmailDeliveryError = () =>
+  Object.assign(new Error('Invitation email delivery failed.'), {
+    code: 'INVITATION_EMAIL_DELIVERY_FAILED',
+  });
+
 export async function sendBarbershopInvitation(barbershopId: string, values: ParsedInvitationForm) {
   const { data, error } = await supabase.rpc('send_barbershop_invitation', {
     p_barbershop_id: barbershopId,
@@ -17,6 +22,16 @@ export async function sendBarbershopInvitation(barbershopId: string, values: Par
   if (error) throw error;
   if (data === null) throw expiredInvitationError();
   return data;
+}
+
+export async function sendInvitationEmail(invitationId: string) {
+  const { data, error } = await supabase.functions.invoke('send-invitation-email', {
+    body: { invitation_id: invitationId },
+  });
+
+  if (error || !data || typeof data !== 'object' || data.ok !== true) {
+    throw invitationEmailDeliveryError();
+  }
 }
 
 export async function acceptBarbershopInvitation(invitationId: string) {
