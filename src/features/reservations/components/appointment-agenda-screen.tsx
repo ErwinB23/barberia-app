@@ -23,6 +23,8 @@ import { getOperationalAgenda } from '../queries';
 import { getPaymentMethodLabel } from '../reservation-domain';
 import type { OperationalAppointment, ReservationStatus } from '../types';
 import { PaymentStatusBadge, ReservationStatusBadge } from './appointment-status-badge';
+import { BarberAppointmentAgenda } from './barber-appointment-agenda';
+import { BarberAgendaSkeleton } from './barber-appointment-skeletons';
 
 const PERIODS: readonly { value: AgendaPeriod; label: string }[] = [
   { value: 'today', label: 'Hoy' },
@@ -159,11 +161,16 @@ export function AppointmentAgendaScreen({
 
   const refresh = async () => {
     setIsRefreshing(true);
-    await reload();
-    setIsRefreshing(false);
+    try {
+      await reload();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   if (isLoading && !data) {
+    if (barberId) return <BarberAgendaSkeleton />;
+
     return (
       <ThemedView style={styles.centered}>
         <ThemedText themeColor="textSecondary">Cargando agenda…</ThemedText>
@@ -181,6 +188,27 @@ export function AppointmentAgendaScreen({
   }
 
   const isAdmin = data.role === 'administrator';
+
+  if (!isAdmin && barberId) {
+    return (
+      <BarberAppointmentAgenda
+        appointments={appointments}
+        error={error}
+        isLoading={isLoading}
+        isRefreshing={isRefreshing}
+        onOpenAppointment={(reservationId) =>
+          router.push(
+            `/barbershops/${barbershopId}/barbers/${barberId}/appointments/${reservationId}` as Href,
+          )
+        }
+        onPeriodChange={(period) => updateFilters({ period })}
+        onRefresh={() => void refresh()}
+        onStatusChange={(status) => updateFilters({ status })}
+        period={filters.period}
+        status={filters.status}
+      />
+    );
+  }
 
   return (
     <ThemedView style={styles.screen}>

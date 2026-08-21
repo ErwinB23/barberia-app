@@ -1,11 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 
 import { ActionButton } from '@/shared/components/ui/action-button';
 import { FormField } from '@/shared/components/ui/form-field';
 import { StatusMessage } from '@/shared/components/ui/status-message';
-import { ThemedText } from '@/shared/components/ui/themed-text';
 import { ThemedView } from '@/shared/components/ui/themed-view';
 import { Spacing } from '@/theme/spacing';
 
@@ -19,9 +18,10 @@ import {
 } from '../barber-domain';
 import { getBarberErrorMessage } from '../errors';
 import { useBarberProfileResource } from '../hooks/use-barber-profile-resource';
-import { getBarberSchedule, getBarbershopHours } from '../queries';
+import { getBarberSchedule, getBarbershopContextName, getBarbershopHours } from '../queries';
 import type { BarberSchedule, BarbershopHour } from '../types';
 import { BarberFormPage } from './barber-form-page';
+import { BarberScreenSkeleton } from './barber-screen-skeleton';
 
 type Props = {
   mode: 'create' | 'edit';
@@ -40,6 +40,8 @@ type FormProps = {
   target: BarberSchedule | null;
   schedules: BarberSchedule[];
   openingHours: BarbershopHour[];
+  barbershopName: string | null;
+  isOwnProfile: boolean;
 };
 
 function ScheduleEditorForm({
@@ -51,6 +53,8 @@ function ScheduleEditorForm({
   target,
   schedules,
   openingHours,
+  barbershopName,
+  isOwnProfile,
 }: FormProps) {
   const [values, setValues] = useState<BarberScheduleFormValues>(
     target
@@ -60,6 +64,7 @@ function ScheduleEditorForm({
   const [errors, setErrors] = useState<BarberScheduleFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const update = (field: keyof BarberScheduleFormValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -67,12 +72,14 @@ function ScheduleEditorForm({
   };
 
   const submit = async () => {
+    if (isSubmittingRef.current) return;
     const sameDay = schedules.filter((item) => item.weekday === weekday);
     const opening = openingHours.filter((item) => item.weekday === weekday);
     const parsed = parseBarberScheduleForm(values, sameDay, opening, target?.id);
     setErrors(parsed.errors);
     if (!parsed.values) return;
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     setMutationError(null);
     try {
@@ -85,49 +92,60 @@ function ScheduleEditorForm({
     } catch (mutation) {
       setMutationError(getBarberErrorMessage(mutation, 'schedules'));
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
   const opening = openingHours.filter((item) => item.weekday === weekday);
   return (
-    <BarberFormPage
-      description={`Horario de ${getWeekdayName(weekday).toLowerCase()}. Disponible: ${opening.length ? opening.map((item) => `${item.startTime}–${item.endTime}`).join(' · ') : 'cerrado'}.`}
-      title={mode === 'create' ? 'Nuevo intervalo' : 'Editar intervalo'}
-    >
-      {mutationError ? <StatusMessage message={mutationError} /> : null}
-      <View style={styles.form}>
-        <FormField
-          autoCapitalize="none"
-          autoCorrect={false}
-          error={errors.startTime}
-          helperText="Formato de 24 horas HH:mm."
-          label="Hora de inicio"
-          maxLength={5}
-          onChangeText={(value) => update('startTime', value)}
-          placeholder="09:00"
-          required
-          value={values.startTime}
+    <>
+      {isOwnProfile ? (
+        <Stack.Screen
+          options={{ title: mode === 'create' ? 'Agregar intervalo' : 'Editar intervalo' }}
         />
-        <FormField
-          autoCapitalize="none"
-          autoCorrect={false}
-          error={errors.endTime}
-          helperText="Debe caber en un único intervalo general y no solaparse."
-          label="Hora de fin"
-          maxLength={5}
-          onChangeText={(value) => update('endTime', value)}
-          placeholder="13:00"
-          required
-          value={values.endTime}
-        />
-        <ActionButton
-          isLoading={isSubmitting}
-          label="Guardar horario"
-          onPress={() => void submit()}
-        />
-      </View>
-    </BarberFormPage>
+      ) : null}
+      <BarberFormPage
+        barbershopName={barbershopName}
+        description={`Horario de ${getWeekdayName(weekday).toLowerCase()}. Disponible: ${opening.length ? opening.map((item) => `${item.startTime}–${item.endTime}`).join(' · ') : 'cerrado'}.`}
+        title={
+          isOwnProfile ? undefined : mode === 'create' ? 'Nuevo intervalo' : 'Editar intervalo'
+        }
+      >
+        {mutationError ? <StatusMessage message={mutationError} /> : null}
+        <View style={styles.form}>
+          <FormField
+            autoCapitalize="none"
+            autoCorrect={false}
+            error={errors.startTime}
+            helperText="Formato de 24 horas HH:mm."
+            label="Hora de inicio"
+            maxLength={5}
+            onChangeText={(value) => update('startTime', value)}
+            placeholder="09:00"
+            required
+            value={values.startTime}
+          />
+          <FormField
+            autoCapitalize="none"
+            autoCorrect={false}
+            error={errors.endTime}
+            helperText="Debe caber en un único intervalo general y no solaparse."
+            label="Hora de fin"
+            maxLength={5}
+            onChangeText={(value) => update('endTime', value)}
+            placeholder="13:00"
+            required
+            value={values.endTime}
+          />
+          <ActionButton
+            isLoading={isSubmitting}
+            label="Guardar horario"
+            onPress={() => void submit()}
+          />
+        </View>
+      </BarberFormPage>
+    </>
   );
 }
 
@@ -139,25 +157,20 @@ export function BarberScheduleEditorScreen({
   scheduleId,
 }: Props) {
   const load = useCallback(async () => {
-    if (!barbershopId || !barberId) return { schedules: [], hours: [] };
-    const [schedules, hours] = await Promise.all([
+    if (!barbershopId || !barberId) return { schedules: [], hours: [], barbershopName: null };
+    const [schedules, hours, barbershopName] = await Promise.all([
       getBarberSchedule(barbershopId, barberId),
       getBarbershopHours(barbershopId),
+      getBarbershopContextName(barbershopId),
     ]);
-    return { schedules, hours };
+    return { schedules, hours, barbershopName };
   }, [barberId, barbershopId]);
   const resource = useBarberProfileResource(barbershopId, barberId, load, 'schedules');
   const target =
     mode === 'edit' ? resource.data?.schedules.find((item) => item.id === scheduleId) : null;
   const weekday = mode === 'edit' ? (target?.weekday ?? null) : requestedWeekday;
 
-  if (resource.isLoading) {
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Preparando horario…</ThemedText>
-      </ThemedView>
-    );
-  }
+  if (resource.isLoading) return <BarberScreenSkeleton variant="form" />;
   if (
     !resource.access.canManageSchedule ||
     !barbershopId ||
@@ -181,6 +194,8 @@ export function BarberScheduleEditorScreen({
     <ScheduleEditorForm
       barberId={barberId}
       barbershopId={barbershopId}
+      barbershopName={resource.data?.barbershopName ?? null}
+      isOwnProfile={resource.isOwnProfile}
       key={target?.id ?? `new-${weekday}`}
       mode={mode}
       openingHours={resource.data?.hours ?? []}

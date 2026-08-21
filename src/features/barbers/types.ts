@@ -9,7 +9,10 @@ export type BarberRow = Pick<
   'id' | 'barbershop_id' | 'display_name' | 'bio' | 'photo_url' | 'is_active'
 >;
 export type BarberServiceRow = Pick<Tables<'barber_services'>, 'barber_id' | 'service_id'>;
-export type ServiceRow = Pick<Tables<'services'>, 'id' | 'barbershop_id' | 'name' | 'is_active'>;
+export type ServiceRow = Pick<
+  Tables<'services'>,
+  'id' | 'barbershop_id' | 'name' | 'duration_minutes' | 'price' | 'is_active'
+>;
 export type BarberScheduleRow = Pick<
   Tables<'barber_schedules'>,
   'id' | 'barbershop_id' | 'barber_id' | 'weekday' | 'start_time' | 'end_time'
@@ -23,7 +26,13 @@ export type BarberBlockRow = Pick<
   'id' | 'barbershop_id' | 'barber_id' | 'starts_at' | 'ends_at' | 'reason'
 >;
 
-export type BarberService = { id: string; name: string; isActive: boolean };
+export type BarberService = {
+  id: string;
+  name: string;
+  durationMinutes: number;
+  price: number;
+  isActive: boolean;
+};
 
 export type Barber = {
   id: string;
