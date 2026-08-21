@@ -143,9 +143,9 @@ export function AppointmentAgendaScreen({
   const load = useCallback(
     () =>
       user && barbershopId
-        ? getOperationalAgenda({ userId: user.id, barbershopId, barberId })
+        ? getOperationalAgenda({ userId: user.id, barbershopId, barberId, period: filters.period })
         : Promise.resolve(null),
-    [barberId, barbershopId, user],
+    [barberId, barbershopId, filters.period, user],
   );
   const { data, isLoading, error, reload } = useFocusedResource(load);
   const appointments = useMemo(

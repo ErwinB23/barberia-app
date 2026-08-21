@@ -1,11 +1,22 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { ActivityIndicator, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { router, type Href } from 'expo-router';
+import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 
 import { getAuthErrorMessage } from '@/features/auth/auth-errors';
 import { AuthLoadingScreen } from '@/features/auth/components/auth-loading-screen';
 import { useAuth } from '@/features/auth/hooks/use-auth';
+import { useUnreadNotificationCount } from '@/features/notifications/hooks/use-unread-notification-count';
 import { useProfile } from '@/features/profile/hooks/use-profile';
+import { useProfileSpaces } from '@/features/profile/hooks/use-profile-spaces';
 import { ActionButton } from '@/shared/components/ui/action-button';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
@@ -14,25 +25,36 @@ import { ThemedText } from '@/shared/components/ui/themed-text';
 import { ThemedView } from '@/shared/components/ui/themed-view';
 import { useTheme } from '@/theme/hooks/use-theme';
 import { Spacing } from '@/theme/spacing';
-import { Layout, Radius, TypeScale } from '@/theme/tokens';
+import { Layout, Motion, TypeScale } from '@/theme/tokens';
 
-type ProfileRowProps = {
-  label: string;
-  value: string;
-  isLast?: boolean;
+import { ProfileAvatar } from './profile-avatar';
+import { ProfileNavigationRow } from './profile-navigation-row';
+import { ProfilePersonalForm } from './profile-personal-form';
+
+type ProfileSectionProps = {
+  children: ReactNode;
+  description?: string;
+  title: string;
 };
 
-function ProfileRow({ label, value, isLast = false }: ProfileRowProps) {
-  const theme = useTheme();
-
+function ProfileSection({ children, description, title }: ProfileSectionProps) {
   return (
-    <View style={[styles.row, isLast ? styles.rowLast : { borderBottomColor: theme.border }]}>
-      <ThemedText style={styles.label} themeColor="textSecondary">
-        {label}
-      </ThemedText>
-      <ThemedText selectable style={styles.value}>
-        {value}
-      </ThemedText>
+    <View style={styles.section}>
+      <View style={styles.sectionHeading}>
+        <ThemedText
+          accessibilityRole="header"
+          style={styles.sectionTitle}
+          themeColor="textSecondary"
+        >
+          {title}
+        </ThemedText>
+        {description ? (
+          <ThemedText style={styles.sectionDescription} themeColor="textSecondary">
+            {description}
+          </ThemedText>
+        ) : null}
+      </View>
+      {children}
     </View>
   );
 }
@@ -43,11 +65,21 @@ type AuthenticatedProfileHomeProps = {
 };
 
 function AuthenticatedProfileHome({ user, signOut }: AuthenticatedProfileHomeProps) {
-  const { profile, isLoading, error, reload } = useProfile(user);
+  const { profile, isLoading, error, reload, save } = useProfile(user);
+  const {
+    spaces,
+    isLoading: areSpacesLoading,
+    error: spacesError,
+    reload: reloadSpaces,
+  } = useProfileSpaces(user.id);
+  const { count: unreadNotificationCount } = useUnreadNotificationCount(user.id);
   const theme = useTheme();
   const { width } = useWindowDimensions();
+  const [isEditing, setIsEditing] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const isCompact = width < Layout.compactBreakpoint;
+  const displayName = profile?.fullName ?? user.email?.split('@')[0] ?? 'Tu cuenta';
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -64,86 +96,169 @@ function AuthenticatedProfileHome({ user, signOut }: AuthenticatedProfileHomePro
 
   return (
     <ThemedView style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          width < Layout.compactBreakpoint ? styles.compactContent : null,
-        ]}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={72}
+        style={styles.screen}
       >
-        <View style={styles.headingRow}>
+        <ScrollView
+          contentContainerStyle={[styles.content, isCompact ? styles.compactContent : null]}
+          contentInsetAdjustmentBehavior="automatic"
+          keyboardShouldPersistTaps="handled"
+        >
           <ScreenHeading
-            compact={width < Layout.compactBreakpoint}
-            description="Tu espacio personal está conectado y protegido. Aquí verás la información básica de tu cuenta."
-            eyebrow="Cuenta"
-            title="Tu perfil"
+            compact={isCompact}
+            description="Tus datos personales, favoritas y notificaciones en un solo lugar."
+            title="Perfil"
           />
-          <View
-            accessibilityLabel="Sesión activa"
-            accessibilityRole="text"
-            style={[styles.sessionBadge, { backgroundColor: theme.successSurface }]}
-          >
-            <View style={[styles.sessionDot, { backgroundColor: theme.success }]} />
-            <ThemedText style={styles.sessionLabel} themeColor="success">
-              Sesión activa
-            </ThemedText>
-          </View>
-        </View>
 
-        {error ? (
-          <View style={styles.messageGroup}>
-            <StatusMessage message={error} />
-            <ActionButton label="Reintentar" onPress={reload} variant="secondary" />
-          </View>
-        ) : null}
-
-        {isLoading ? (
-          <SurfaceCard style={styles.loading}>
-            <ActivityIndicator color={theme.primary} />
-            <ThemedText themeColor="textSecondary">Cargando perfil…</ThemedText>
+          <SurfaceCard elevated style={styles.profileCard}>
+            {isLoading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color={theme.primary} />
+                <ThemedText themeColor="textSecondary">Cargando tu perfil...</ThemedText>
+              </View>
+            ) : (
+              <View style={[styles.profileHeader, isCompact ? styles.compactProfileHeader : null]}>
+                <ProfileAvatar avatarUrl={profile?.avatarUrl ?? null} displayName={displayName} />
+                <View style={styles.profileCopy}>
+                  <ThemedText accessibilityRole="header" style={styles.profileName}>
+                    {displayName}
+                  </ThemedText>
+                  {user.email ? (
+                    <ThemedText selectable style={styles.profileDetail} themeColor="textSecondary">
+                      {user.email}
+                    </ThemedText>
+                  ) : null}
+                  {profile?.phone ? (
+                    <ThemedText selectable style={styles.profileDetail} themeColor="textSecondary">
+                      {profile.phone}
+                    </ThemedText>
+                  ) : null}
+                </View>
+              </View>
+            )}
           </SurfaceCard>
-        ) : null}
 
-        {!isLoading && profile ? (
-          <SurfaceCard style={styles.card}>
-            <View style={styles.profileSummary}>
-              <View style={[styles.avatar, { backgroundColor: theme.surfaceMuted }]}>
-                <ThemedText style={styles.avatarLabel} themeColor="primary">
-                  {(profile.fullName ?? user.email ?? 'B').trim().charAt(0).toUpperCase()}
-                </ThemedText>
-              </View>
-              <View style={styles.profileSummaryText}>
-                <ThemedText style={styles.profileName}>
-                  {profile.fullName ?? 'Perfil personal'}
-                </ThemedText>
-                <ThemedText style={styles.profileCaption} themeColor="textSecondary">
-                  Información de tu cuenta
-                </ThemedText>
-              </View>
+          {error ? (
+            <View style={styles.messageGroup}>
+              <StatusMessage message={error} />
+              <ActionButton label="Reintentar" onPress={reload} variant="secondary" />
             </View>
-            <ProfileRow label="Nombre" value={profile.fullName ?? 'Sin nombre registrado'} />
-            <ProfileRow label="Teléfono" value={profile.phone ?? 'No registrado'} />
-            <ProfileRow isLast label="Correo" value={user.email ?? 'No disponible'} />
-          </SurfaceCard>
-        ) : null}
+          ) : null}
 
-        <View style={styles.sessionActions}>
-          <View style={styles.sessionActionsCopy}>
-            <ThemedText style={styles.sessionActionsTitle}>Seguridad de la sesión</ThemedText>
-            <ThemedText style={styles.sessionActionsDescription} themeColor="textSecondary">
-              Cierra la sesión cuando termines de usar este dispositivo.
-            </ThemedText>
-          </View>
-          {signOutError ? <StatusMessage message={signOutError} /> : null}
-          <ActionButton
-            isLoading={isSigningOut}
-            label="Cerrar sesión"
-            onPress={() => void handleSignOut()}
-            variant="danger"
-          />
-        </View>
-      </ScrollView>
+          <ProfileSection title="Mi cuenta">
+            <SurfaceCard style={styles.listCard}>
+              <ProfileNavigationRow
+                description="Nombre, teléfono y foto de perfil"
+                icon={{ ios: 'person', android: 'person', web: 'person' }}
+                onPress={() => setIsEditing((currentValue) => !currentValue)}
+                title="Datos personales"
+              />
+              <ProfileNavigationRow
+                description="Tus barberías guardadas y tu favorita principal"
+                icon={{ ios: 'heart', android: 'favorite', web: 'favorite' }}
+                onPress={() => router.push('/favorites')}
+                title="Favoritas"
+              />
+              <ProfileNavigationRow
+                badgeCount={unreadNotificationCount}
+                description="Reservas, pagos e invitaciones"
+                icon={{ ios: 'bell', android: 'notifications', web: 'notifications' }}
+                onPress={() => router.push('/notifications')}
+                title="Notificaciones"
+              />
+              <ProfileNavigationRow
+                description="Solicitudes para trabajar o administrar"
+                icon={{ ios: 'envelope', android: 'mail', web: 'mail' }}
+                isLast
+                onPress={() => router.push('/invitations')}
+                title="Invitaciones"
+              />
+            </SurfaceCard>
+          </ProfileSection>
+
+          {isEditing && profile ? (
+            <Animated.View
+              entering={FadeIn.duration(Motion.state).reduceMotion(ReduceMotion.System)}
+              exiting={FadeOut.duration(Motion.exit).reduceMotion(ReduceMotion.System)}
+            >
+              <SurfaceCard style={styles.editorCard}>
+                <ProfilePersonalForm
+                  onClose={() => setIsEditing(false)}
+                  onSave={save}
+                  profile={profile}
+                />
+              </SurfaceCard>
+            </Animated.View>
+          ) : null}
+
+          {areSpacesLoading ? (
+            <ProfileSection
+              description="Estamos comprobando tus accesos adicionales."
+              title="Mis espacios"
+            >
+              <SurfaceCard style={styles.loadingRow}>
+                <ActivityIndicator color={theme.primary} />
+                <ThemedText themeColor="textSecondary">Cargando espacios...</ThemedText>
+              </SurfaceCard>
+            </ProfileSection>
+          ) : spacesError ? (
+            <ProfileSection title="Mis espacios">
+              <View style={styles.messageGroup}>
+                <StatusMessage message={spacesError} />
+                <ActionButton
+                  label="Reintentar"
+                  onPress={() => void reloadSpaces()}
+                  variant="secondary"
+                />
+              </View>
+            </ProfileSection>
+          ) : spaces.length > 0 ? (
+            <ProfileSection
+              description="Tu cuenta puede conservar la experiencia cliente y entrar a estos espacios."
+              title="Mis espacios"
+            >
+              <SurfaceCard style={styles.listCard}>
+                {spaces.map((space, index) => (
+                  <ProfileNavigationRow
+                    description={space.description}
+                    icon={
+                      space.kind === 'barber'
+                        ? { ios: 'scissors', android: 'content_cut', web: 'content_cut' }
+                        : { ios: 'building.2', android: 'storefront', web: 'storefront' }
+                    }
+                    isLast={index === spaces.length - 1}
+                    key={space.id}
+                    onPress={() => router.push(space.href as Href)}
+                    title={space.title}
+                  />
+                ))}
+              </SurfaceCard>
+            </ProfileSection>
+          ) : null}
+
+          <ProfileSection title="Cuenta">
+            <SurfaceCard style={styles.listCard}>
+              <ProfileNavigationRow
+                accessibilityHint="Cierra la sesión en este dispositivo"
+                icon={{
+                  ios: 'rectangle.portrait.and.arrow.right',
+                  android: 'logout',
+                  web: 'logout',
+                }}
+                isLast
+                isLoading={isSigningOut}
+                onPress={() => void handleSignOut()}
+                showsChevron={false}
+                title="Cerrar sesión"
+                tone="danger"
+              />
+            </SurfaceCard>
+            {signOutError ? <StatusMessage message={signOutError} /> : null}
+          </ProfileSection>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ThemedView>
   );
 }
@@ -151,9 +266,7 @@ function AuthenticatedProfileHome({ user, signOut }: AuthenticatedProfileHomePro
 export function ProfileHomeScreen() {
   const { user, signOut } = useAuth();
 
-  if (!user) {
-    return <AuthLoadingScreen />;
-  }
+  if (!user) return <AuthLoadingScreen />;
 
   return <AuthenticatedProfileHome key={user.id} signOut={signOut} user={user} />;
 }
@@ -163,109 +276,76 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    flexGrow: 1,
     width: '100%',
     maxWidth: Layout.contentMaxWidth,
     alignSelf: 'center',
-    gap: Spacing.five,
+    gap: Spacing.four,
     padding: Spacing.five,
-    paddingVertical: Spacing.six,
+    paddingBottom: Spacing.six,
   },
   compactContent: {
     gap: Spacing.four,
     padding: Spacing.three,
-    paddingVertical: Spacing.four,
+    paddingBottom: Spacing.five,
   },
-  headingRow: {
-    gap: Spacing.three,
+  profileCard: {
+    padding: Spacing.three,
   },
-  sessionBadge: {
-    minHeight: 36,
-    alignSelf: 'flex-start',
+  profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    gap: Spacing.four,
   },
-  sessionDot: {
-    width: 8,
-    height: 8,
-    borderRadius: Radius.pill,
+  compactProfileHeader: {
+    alignItems: 'flex-start',
   },
-  sessionLabel: {
-    fontSize: TypeScale.label,
-    fontWeight: '700',
-  },
-  card: {
-    padding: Spacing.five,
-  },
-  profileSummary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: Spacing.four,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.medium,
-  },
-  avatarLabel: {
-    fontSize: TypeScale.title,
-    fontWeight: '800',
-  },
-  profileSummaryText: {
+  profileCopy: {
+    minWidth: 0,
     flex: 1,
     gap: Spacing.one,
   },
   profileName: {
-    fontSize: TypeScale.title,
+    fontSize: TypeScale.headline,
     fontWeight: '700',
+    letterSpacing: -0.6,
+    lineHeight: 36,
   },
-  profileCaption: {
+  profileDetail: {
     fontSize: TypeScale.label,
+    lineHeight: 21,
   },
-  row: {
-    gap: Spacing.one,
-    borderBottomWidth: 1,
-    paddingVertical: Spacing.three,
-  },
-  rowLast: {
-    borderBottomWidth: 0,
-  },
-  label: {
-    fontSize: TypeScale.caption,
-    fontWeight: '700',
-  },
-  value: {
-    fontSize: TypeScale.body,
-    lineHeight: 24,
-  },
-  loading: {
-    alignItems: 'center',
+  section: {
     gap: Spacing.two,
-    padding: Spacing.five,
+  },
+  sectionHeading: {
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.one,
+  },
+  sectionTitle: {
+    fontSize: TypeScale.body,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
+  sectionDescription: {
+    maxWidth: 620,
+    fontSize: TypeScale.label,
+    lineHeight: 21,
+  },
+  listCard: {
+    overflow: 'hidden',
+  },
+  editorCard: {
+    padding: Spacing.four,
+  },
+  loadingRow: {
+    minHeight: 88,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    padding: Spacing.four,
   },
   messageGroup: {
     gap: Spacing.three,
-  },
-  sessionActions: {
-    gap: Spacing.three,
-    paddingTop: Spacing.one,
-  },
-  sessionActionsCopy: {
-    gap: Spacing.one,
-  },
-  sessionActionsTitle: {
-    fontSize: TypeScale.body,
-    fontWeight: '700',
-  },
-  sessionActionsDescription: {
-    fontSize: TypeScale.label,
-    lineHeight: 21,
   },
 });

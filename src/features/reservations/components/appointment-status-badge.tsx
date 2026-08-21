@@ -10,17 +10,26 @@ import type { PaymentStatus, ReservationStatus } from '../types';
 
 export function ReservationStatusBadge({ status }: { status: ReservationStatus }) {
   const theme = useTheme();
-  const isPositive = status === 'completed';
-  const isWarning = status === 'confirmed' || status === 'in_progress';
-  const color = isPositive ? theme.success : isWarning ? theme.warning : theme.textSecondary;
-  const backgroundColor = isPositive
-    ? theme.successSurface
-    : isWarning
-      ? theme.warningSurface
-      : theme.surfaceMuted;
+  const palette = {
+    confirmed: { color: theme.warning, backgroundColor: theme.warningSurface },
+    in_progress: { color: theme.primary, backgroundColor: theme.surfaceMuted },
+    completed: { color: theme.success, backgroundColor: theme.successSurface },
+    cancelled: { color: theme.danger, backgroundColor: theme.dangerSurface },
+    no_show: { color: theme.textSecondary, backgroundColor: theme.surfaceMuted },
+  }[status];
 
   return (
-    <ThemedText style={[styles.badge, { backgroundColor, color }]}>
+    <ThemedText
+      accessibilityLabel={`Estado de reserva: ${getReservationStatusLabel(status)}`}
+      style={[
+        styles.badge,
+        {
+          backgroundColor: palette.backgroundColor,
+          borderColor: palette.color,
+          color: palette.color,
+        },
+      ]}
+    >
       {getReservationStatusLabel(status)}
     </ThemedText>
   );
@@ -28,17 +37,25 @@ export function ReservationStatusBadge({ status }: { status: ReservationStatus }
 
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
   const theme = useTheme();
-  const isPositive = status === 'paid' || status === 'refunded';
-  const isWarning = status === 'pending';
-  const color = isPositive ? theme.success : isWarning ? theme.warning : theme.danger;
-  const backgroundColor = isPositive
-    ? theme.successSurface
-    : isWarning
-      ? theme.warningSurface
-      : theme.dangerSurface;
+  const palette = {
+    pending: { color: theme.warning, backgroundColor: theme.warningSurface },
+    paid: { color: theme.success, backgroundColor: theme.successSurface },
+    refunded: { color: theme.primary, backgroundColor: theme.surfaceMuted },
+    failed: { color: theme.danger, backgroundColor: theme.dangerSurface },
+  }[status];
 
   return (
-    <ThemedText style={[styles.badge, { backgroundColor, color }]}>
+    <ThemedText
+      accessibilityLabel={`Estado del pago: ${getPaymentStatusLabel(status)}`}
+      style={[
+        styles.badge,
+        {
+          backgroundColor: palette.backgroundColor,
+          borderColor: palette.color,
+          color: palette.color,
+        },
+      ]}
+    >
       {getPaymentStatusLabel(status)}
     </ThemedText>
   );
@@ -48,6 +65,7 @@ const styles = StyleSheet.create({
   badge: {
     alignSelf: 'flex-start',
     overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one,

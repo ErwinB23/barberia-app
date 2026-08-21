@@ -31,6 +31,18 @@
       "skillPath": ".claude/skills/deep-code-review/SKILL.md",
       "computedHash": "fabd3728db0d2fa8361776a09582d4a1b59582f3f9d59a6bf3fdb2b3ce67db26"
     },
+    "design-taste-frontend": {
+      "source": "Leonxlnx/taste-skill",
+      "sourceType": "github",
+      "skillPath": "skills/taste-skill/SKILL.md",
+      "computedHash": "899b84384f74f540ea5284d9b2e9234e050998b42eacc805410b518d4226c0b3"
+    },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "87067d79205fdedc6d682891027dd9c7335486c4b4dc2e785638941a9d2e6061"
+    },
     "expo-data-fetching": {
       "source": "expo/skills",
       "sourceType": "github",

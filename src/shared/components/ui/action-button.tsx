@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
+import { getPressedScaleStyle } from '@/shared/components/ui/press-feedback';
 import { useTheme } from '@/theme/hooks/use-theme';
-import { Radius, TypeScale } from '@/theme/tokens';
+import { Opacity, Radius, TypeScale } from '@/theme/tokens';
 
 type ActionButtonProps = {
   label: string;
@@ -9,6 +12,7 @@ type ActionButtonProps = {
   isLoading?: boolean;
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'danger';
+  size?: 'default' | 'compact';
 };
 
 export function ActionButton({
@@ -17,8 +21,11 @@ export function ActionButton({
   isLoading = false,
   disabled = false,
   variant = 'primary',
+  size = 'default',
 }: ActionButtonProps) {
   const theme = useTheme();
+  const reduceMotion = useReducedMotion();
+  const [isFocused, setIsFocused] = useState(false);
   const isDisabled = disabled || isLoading;
   const palette = {
     primary: {
@@ -46,12 +53,17 @@ export function ActionButton({
       accessibilityRole="button"
       accessibilityState={{ busy: isLoading, disabled: isDisabled }}
       disabled={isDisabled}
+      onBlur={() => setIsFocused(false)}
+      onFocus={() => setIsFocused(true)}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        size === 'compact' ? styles.compactButton : null,
         { backgroundColor: palette.backgroundColor, borderColor: palette.borderColor },
+        isFocused ? { boxShadow: `0 0 0 2px ${theme.focus}` } : null,
         isDisabled ? styles.disabled : null,
         pressed && !isDisabled ? { backgroundColor: palette.pressedBackgroundColor } : null,
+        getPressedScaleStyle(pressed && !isDisabled, reduceMotion, 0.985),
       ]}
     >
       {isLoading ? (
@@ -74,7 +86,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   disabled: {
-    opacity: 0.5,
+    opacity: Opacity.disabled,
+  },
+  compactButton: {
+    minHeight: 48,
+    paddingHorizontal: 16,
   },
   label: {
     fontSize: TypeScale.body,

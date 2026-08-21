@@ -15,6 +15,7 @@ import {
   mapReservationDescriptionSnapshots,
   mapReservationServiceDescriptionSnapshots,
 } from './reservation-domain';
+import { getAgendaPeriodWindow, type AgendaPeriod } from './appointment-domain';
 
 type ReservationRow = Database['public']['Tables']['reservations']['Row'];
 
@@ -111,10 +112,18 @@ async function enrichReservations(
   rows: Awaited<ReturnType<typeof getReservationRows>>,
 ): Promise<ClientReservation[]> {
   const reservationIds = rows.map((row) => row.id);
-  const [itemsByReservation, paymentsByReservation] = await Promise.all([
+  const [itemsResult, paymentsResult] = await Promise.allSettled([
     getReservationItems(reservationIds),
     getReservationPayments(reservationIds),
   ]);
+  const itemsByReservation =
+    itemsResult.status === 'fulfilled'
+      ? itemsResult.value
+      : new Map<string, ClientReservationItem[]>();
+  const paymentsByReservation =
+    paymentsResult.status === 'fulfilled'
+      ? paymentsResult.value
+      : new Map<string, ClientReservationPayment>();
 
   return rows.map((row) => {
     const description = mapReservationDescriptionSnapshots(row);
@@ -136,8 +145,11 @@ async function enrichReservations(
       refundPolicy: row.refund_policy_at_late_action,
       cancelledAt: row.cancelled_at,
       items: itemsByReservation.get(row.id) ?? [],
+      itemsUnavailable: itemsResult.status === 'rejected',
       payment: paymentsByReservation.get(row.id) ?? null,
+      paymentUnavailable: paymentsResult.status === 'rejected',
       yapeSettings: null,
+      yapeSettingsUnavailable: false,
     };
   });
 }
@@ -154,7 +166,9 @@ export async function getClientReservation(userId: string, reservationId: string
   const { data, error } = await supabase
     .rpc('get_reservation_yape_settings', { p_reservation_id: reservation.id })
     .maybeSingle();
-  if (error) throw error;
+  if (error) {
+    return { ...reservation, yapeSettings: null, yapeSettingsUnavailable: true };
+  }
 
   const yapeSettings: ClientYapeSettings | null = data
     ? {
@@ -163,7 +177,7 @@ export async function getClientReservation(userId: string, reservationId: string
         qrUrl: data.yape_qr_url,
       }
     : null;
-  return { ...reservation, yapeSettings };
+  return { ...reservation, yapeSettings, yapeSettingsUnavailable: false };
 }
 
 async function getOperationalRole(
@@ -191,16 +205,28 @@ async function getOperationalRole(
   return ownProfile?.barber_id === barberId && ownProfile.is_active ? 'barber' : null;
 }
 
-async function getOperationalRows(barbershopId: string, barberId: string | null, id?: string) {
+async function getOperationalRows(
+  barbershopId: string,
+  barberId: string | null,
+  period: AgendaPeriod | null,
+  id?: string,
+) {
+  const periodWindow = period ? getAgendaPeriodWindow(period) : null;
   let query = supabase
     .from('reservations')
     .select(RESERVATION_COLUMNS)
-    .eq('barbershop_id', barbershopId)
-    .order('starts_at', { ascending: false })
-    .limit(300);
+    .eq('barbershop_id', barbershopId);
 
   if (barberId) query = query.eq('barber_id', barberId);
   if (id) query = query.eq('id', id);
+  if (periodWindow?.startInclusive) {
+    query = query.gte('starts_at', periodWindow.startInclusive);
+  }
+  if (periodWindow?.endExclusive) {
+    query = query.lt('starts_at', periodWindow.endExclusive);
+  }
+
+  query = query.order('starts_at', { ascending: periodWindow?.ascending ?? false });
 
   const { data, error } = await query;
   if (error) throw error;
@@ -280,12 +306,15 @@ export async function getOperationalAgenda(input: {
   userId: string;
   barbershopId: string;
   barberId: string | null;
+  period: AgendaPeriod;
 }): Promise<OperationalAgenda | null> {
   const role = await getOperationalRole(input.userId, input.barbershopId, input.barberId);
   if (!role) return null;
 
   const [appointments, barbers] = await Promise.all([
-    getOperationalRows(input.barbershopId, input.barberId).then(enrichOperationalAppointments),
+    getOperationalRows(input.barbershopId, input.barberId, input.period).then(
+      enrichOperationalAppointments,
+    ),
     getAppointmentBarbers(input.barbershopId, input.barberId),
   ]);
   return { role, appointments, barbers };
@@ -301,7 +330,7 @@ export async function getOperationalAppointment(input: {
   if (!role) return null;
 
   const appointments = await enrichOperationalAppointments(
-    await getOperationalRows(input.barbershopId, input.barberId, input.reservationId),
+    await getOperationalRows(input.barbershopId, input.barberId, null, input.reservationId),
   );
   const appointment = appointments[0];
   return appointment ? { role, appointment } : null;

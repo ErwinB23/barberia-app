@@ -3,6 +3,12 @@ import type { PaymentMethod, PaymentStatus, ReservationStatus } from './types';
 export type OperationalRole = 'barber' | 'administrator';
 export type AgendaPeriod = 'today' | 'upcoming' | 'history';
 
+export type AgendaPeriodWindow = {
+  startInclusive: string | null;
+  endExclusive: string | null;
+  ascending: boolean;
+};
+
 type OperationalActionInput = {
   actorRole: OperationalRole;
   reservationStatus: ReservationStatus;
@@ -49,7 +55,7 @@ const PAYMENT_CONFIRMABLE_STATUSES: readonly ReservationStatus[] = [
   'completed',
 ];
 
-const HISTORY_STATUSES: readonly ReservationStatus[] = ['completed', 'cancelled', 'no_show'];
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function getLimaDateKey(date: Date) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -60,6 +66,33 @@ function getLimaDateKey(date: Date) {
   }).formatToParts(date);
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
+}
+
+export function getAgendaPeriodWindow(period: AgendaPeriod, now = new Date()): AgendaPeriodWindow {
+  const limaDayStart = new Date(`${getLimaDateKey(now)}T00:00:00-05:00`);
+  const nextLimaDayStart = new Date(limaDayStart.getTime() + MILLISECONDS_PER_DAY);
+
+  if (period === 'today') {
+    return {
+      startInclusive: limaDayStart.toISOString(),
+      endExclusive: nextLimaDayStart.toISOString(),
+      ascending: true,
+    };
+  }
+
+  if (period === 'upcoming') {
+    return {
+      startInclusive: nextLimaDayStart.toISOString(),
+      endExclusive: null,
+      ascending: true,
+    };
+  }
+
+  return {
+    startInclusive: null,
+    endExclusive: limaDayStart.toISOString(),
+    ascending: false,
+  };
 }
 
 export function getOperationalActions(
@@ -94,10 +127,8 @@ function matchesPeriod(appointment: FilterableAppointment, period: AgendaPeriod,
   const today = getLimaDateKey(now);
 
   if (period === 'today') return appointmentDate === today;
-  if (period === 'history') {
-    return appointmentDate < today || HISTORY_STATUSES.includes(appointment.status);
-  }
-  return appointmentDate > today && !HISTORY_STATUSES.includes(appointment.status);
+  if (period === 'history') return appointmentDate < today;
+  return appointmentDate > today;
 }
 
 export function filterAgendaAppointments<T extends FilterableAppointment>(

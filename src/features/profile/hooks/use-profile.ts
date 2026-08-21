@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 
 import { getRegistrationPhone } from '@/features/profile/profile-metadata';
-import { loadOwnProfile } from '@/features/profile/services/profile-service';
+import type { ParsedProfileFormValues } from '@/features/profile/profile-domain';
+import { loadOwnProfile, updateOwnProfile } from '@/features/profile/services/profile-service';
 import type { UserProfile } from '@/features/profile/types';
 
 export function useProfile(user: User) {
@@ -44,5 +45,14 @@ export function useProfile(user: User) {
     setReloadKey((currentKey) => currentKey + 1);
   }, []);
 
-  return { profile, isLoading, error, reload };
+  const save = useCallback(
+    async (values: ParsedProfileFormValues) => {
+      const nextProfile = await updateOwnProfile(user.id, values);
+      setProfile(nextProfile);
+      return nextProfile;
+    },
+    [user.id],
+  );
+
+  return { profile, isLoading, error, reload, save };
 }

@@ -132,3 +132,94 @@ test('mapea descripciones historicas exclusivamente desde snapshots', () => {
     },
   );
 });
+
+test('resume servicios históricos sin depender de entidades actuales', () => {
+  assert.equal(typeof reservationDomain.getReservationServiceSummary, 'function');
+  if (typeof reservationDomain.getReservationServiceSummary !== 'function') return;
+
+  const items = [
+    { serviceName: 'Corte clásico', styleName: 'Pompadour' },
+    { serviceName: 'Barba', styleName: null },
+    { serviceName: 'Lavado', styleName: null },
+  ];
+
+  assert.equal(
+    reservationDomain.getReservationServiceSummary(items),
+    'Corte clásico (Pompadour), Barba y 1 más',
+  );
+});
+
+test('construye la comparación de reprogramación conservando los servicios contratados', () => {
+  assert.equal(typeof reservationDomain.buildRescheduleReview, 'function');
+  if (typeof reservationDomain.buildRescheduleReview !== 'function') return;
+
+  const services = [
+    { serviceName: 'Corte original', styleName: 'Estilo original' },
+    { serviceName: 'Barba original', styleName: null },
+  ];
+  const review = reservationDomain.buildRescheduleReview(
+    {
+      startsAt: '2026-08-20T15:00:00.000Z',
+      barberName: 'Carlos',
+      items: services,
+    },
+    {
+      startsAt: '2026-08-22T17:00:00.000Z',
+      barberName: 'Mateo',
+    },
+  );
+
+  assert.deepEqual(review, {
+    current: {
+      startsAt: '2026-08-20T15:00:00.000Z',
+      barberName: 'Carlos',
+    },
+    next: {
+      startsAt: '2026-08-22T17:00:00.000Z',
+      barberName: 'Mateo',
+    },
+    services,
+  });
+  assert.equal(review.services, services);
+});
+
+test('explica la cancelación tardía con la política snapshot real', () => {
+  assert.equal(typeof reservationDomain.getCancellationPolicyMessage, 'function');
+  if (typeof reservationDomain.getCancellationPolicyMessage !== 'function') return;
+
+  assert.equal(
+    reservationDomain.getCancellationPolicyMessage({
+      isLateCancellation: true,
+      isRefundEligible: false,
+      paymentStatus: 'paid',
+    }),
+    'La cancelación fue tardía y la política guardada para esta reserva no permite reembolso.',
+  );
+  assert.equal(
+    reservationDomain.getCancellationPolicyMessage({
+      isLateCancellation: true,
+      isRefundEligible: true,
+      paymentStatus: 'paid',
+    }),
+    'La cancelación fue tardía, pero la política guardada permite solicitar el reembolso. La barbería debe procesarlo.',
+  );
+  assert.equal(
+    reservationDomain.getCancellationPolicyMessage({
+      isLateCancellation: false,
+      isLateReschedule: true,
+      isRefundEligible: false,
+      paymentStatus: 'paid',
+    }),
+    'Una reprogramación tardía conservó la política sin reembolso para esta reserva.',
+  );
+});
+
+test('usa un destino estable después de reprogramar o cancelar', () => {
+  assert.equal(typeof reservationDomain.getClientReservationHref, 'function');
+  if (typeof reservationDomain.getClientReservationHref !== 'function') return;
+
+  assert.equal(
+    reservationDomain.getClientReservationHref('reservation/with spaces'),
+    '/reservations/reservation%2Fwith%20spaces',
+  );
+});

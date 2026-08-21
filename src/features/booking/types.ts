@@ -44,6 +44,11 @@ export type BookingBarber = {
   photoUrl: string | null;
 };
 
+export type BookingRules = {
+  maxBookingDays: number;
+  minBookingNoticeMinutes: number;
+};
+
 export type BookingCatalog = {
   barbershop: PublicBarbershop;
   hours: PublicOpeningHour[];
@@ -51,12 +56,15 @@ export type BookingCatalog = {
   styles: BookingStyle[];
   barbers: BookingBarber[];
   assignments: { barberId: string; serviceId: string }[];
+  rules: BookingRules;
   yapeSettings: {
     holderName: string | null;
     phone: string | null;
     qrUrl: string | null;
   } | null;
 };
+
+export type PublicBarbershopDetail = Omit<BookingCatalog, 'rules' | 'yapeSettings'>;
 
 export type AvailableSlot = {
   barberId: string;

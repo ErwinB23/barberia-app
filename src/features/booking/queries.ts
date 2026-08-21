@@ -6,6 +6,7 @@ import type {
   BookingService,
   BookingStyle,
   PublicBarbershop,
+  PublicBarbershopDetail,
   PublicOpeningHour,
 } from './types';
 
@@ -96,15 +97,21 @@ async function getPublicServices(barbershopId: string): Promise<BookingService[]
   }));
 }
 
-export async function getPublicBarbershopDetail(barbershopId: string) {
+export async function getPublicBarbershopDetail(
+  barbershopId: string,
+): Promise<PublicBarbershopDetail | null> {
   const barbershop = await getVisibleBarbershop(barbershopId);
   if (!barbershop) return null;
 
-  const [hours, services] = await Promise.all([
+  const [hours, services, barbers, assignments] = await Promise.all([
     getPublicHours(barbershopId),
     getPublicServices(barbershopId),
+    getBookingBarbers(barbershopId),
+    getBookingAssignments(barbershopId),
   ]);
-  return { barbershop, hours, services };
+  const styles = await getBookingStyles(services.map((service) => service.id));
+
+  return { barbershop, hours, services, styles, barbers, assignments };
 }
 
 async function getBookingStyles(serviceIds: string[]): Promise<BookingStyle[]> {
@@ -174,16 +181,30 @@ async function getYapeSettings(barbershopId: string) {
     : null;
 }
 
-export async function getBookingCatalog(barbershopId: string): Promise<BookingCatalog | null> {
-  const detail = await getPublicBarbershopDetail(barbershopId);
-  if (!detail) return null;
+async function getBookingRules(barbershopId: string) {
+  const { data, error } = await supabase
+    .from('barbershop_settings')
+    .select('max_booking_days, min_booking_notice_minutes')
+    .eq('barbershop_id', barbershopId)
+    .maybeSingle();
 
-  const [styles, barbers, assignments, yapeSettings] = await Promise.all([
-    getBookingStyles(detail.services.map((service) => service.id)),
-    getBookingBarbers(barbershopId),
-    getBookingAssignments(barbershopId),
+  if (error) throw error;
+  return data
+    ? {
+        maxBookingDays: data.max_booking_days,
+        minBookingNoticeMinutes: data.min_booking_notice_minutes,
+      }
+    : null;
+}
+
+export async function getBookingCatalog(barbershopId: string): Promise<BookingCatalog | null> {
+  const [detail, rules, yapeSettings] = await Promise.all([
+    getPublicBarbershopDetail(barbershopId),
+    getBookingRules(barbershopId),
     getYapeSettings(barbershopId),
   ]);
+  if (!detail) return null;
+  if (!rules) throw new Error('Booking settings are unavailable.');
 
-  return { ...detail, styles, barbers, assignments, yapeSettings };
+  return { ...detail, rules, yapeSettings };
 }

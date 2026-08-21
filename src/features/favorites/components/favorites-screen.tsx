@@ -1,10 +1,19 @@
 import { memo, useCallback, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
+import { useReducedMotion } from 'react-native-reanimated';
 
 import { useAuth } from '@/features/auth/hooks/use-auth';
 import { ActionButton } from '@/shared/components/ui/action-button';
+import { AppIcon } from '@/shared/components/ui/app-icon';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
@@ -70,32 +79,71 @@ const FavoriteCard = memo(function FavoriteCard({
           disabled={isMutating}
           label="Ver barbería"
           onPress={() => router.push(`/explore/${barbershop.id}` as Href)}
+          size="compact"
         />
       )}
-      {favorite.isPrimary ? (
-        <ActionButton
+      <View style={styles.secondaryActions}>
+        <FavoriteSecondaryAction
           disabled={isMutating}
-          label="Quitar como principal"
-          onPress={onUnsetPrimary}
-          variant="secondary"
+          icon={
+            favorite.isPrimary
+              ? { ios: 'star.slash', android: 'star_outline', web: 'star_outline' }
+              : { ios: 'star', android: 'star_border', web: 'star_border' }
+          }
+          label={favorite.isPrimary ? 'Quitar principal' : 'Hacer principal'}
+          onPress={favorite.isPrimary ? onUnsetPrimary : () => onSetPrimary(favorite)}
         />
-      ) : (
-        <ActionButton
+        <FavoriteSecondaryAction
           disabled={isMutating}
-          label="Establecer como principal"
-          onPress={() => onSetPrimary(favorite)}
-          variant="secondary"
+          icon={{ ios: 'trash', android: 'delete', web: 'delete' }}
+          label="Quitar favorita"
+          onPress={() => onRemove(favorite)}
+          tone="danger"
         />
-      )}
-      <ActionButton
-        disabled={isMutating}
-        label="Quitar de favoritos"
-        onPress={() => onRemove(favorite)}
-        variant="danger"
-      />
+      </View>
     </SurfaceCard>
   );
 });
+
+function FavoriteSecondaryAction({
+  disabled,
+  icon,
+  label,
+  onPress,
+  tone = 'default',
+}: {
+  disabled: boolean;
+  icon: Parameters<typeof AppIcon>[0]['name'];
+  label: string;
+  onPress: () => void;
+  tone?: 'default' | 'danger';
+}) {
+  const theme = useTheme();
+  const reduceMotion = useReducedMotion();
+  const foreground = tone === 'danger' ? theme.danger : theme.text;
+
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.secondaryAction,
+        { borderColor: theme.border },
+        pressed ? { backgroundColor: theme.surfaceMuted } : null,
+        pressed && !reduceMotion ? styles.secondaryActionPressed : null,
+        disabled ? styles.disabled : null,
+      ]}
+    >
+      <AppIcon color={foreground} name={icon} size={18} />
+      <ThemedText numberOfLines={1} style={[styles.secondaryActionLabel, { color: foreground }]}>
+        {label}
+      </ThemedText>
+    </Pressable>
+  );
+}
 
 export function FavoritesScreen() {
   const { user } = useAuth();
@@ -159,7 +207,12 @@ export function FavoritesScreen() {
 
   if (isLoading) {
     return (
-      <ThemedView style={styles.centered}>
+      <ThemedView
+        accessibilityLabel="Cargando favoritas"
+        accessibilityRole="progressbar"
+        style={styles.centered}
+      >
+        <ActivityIndicator color={theme.primary} />
         <ThemedText themeColor="textSecondary">Cargando favoritas…</ThemedText>
       </ThemedView>
     );
@@ -189,7 +242,6 @@ export function FavoritesScreen() {
           <View style={styles.header}>
             <ScreenHeading
               description="Guarda varias barberías y destaca una como tu opción principal."
-              eyebrow="Tu selección"
               title="Favoritas"
             />
             {feedback ? <StatusMessage message={feedback} tone="success" /> : null}
@@ -212,7 +264,13 @@ export function FavoritesScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    padding: Spacing.four,
+  },
   content: {
     width: '100%',
     maxWidth: Layout.contentMaxWidth,
@@ -227,5 +285,26 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
   cardTitle: { flex: 1, fontSize: TypeScale.title, fontWeight: '700' },
   primaryLabel: { fontSize: TypeScale.caption, fontWeight: '800' },
+  secondaryActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  secondaryAction: {
+    minWidth: 180,
+    minHeight: 48,
+    flexGrow: 1,
+    flexBasis: 180,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    paddingHorizontal: Spacing.three,
+  },
+  secondaryActionPressed: { transform: [{ scale: 0.985 }] },
+  secondaryActionLabel: { fontSize: TypeScale.label, fontWeight: '700' },
+  disabled: { opacity: 0.5 },
   emptyCard: { gap: Spacing.three, padding: Spacing.four },
 });

@@ -1,185 +1,268 @@
-import { useCallback } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { Image } from 'expo-image';
-import { router, type Href } from 'expo-router';
+import { useCallback, useMemo } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { router } from 'expo-router';
 
-import { FavoriteBarbershopControls } from '@/features/favorites/components/favorite-barbershop-controls';
 import { ActionButton } from '@/shared/components/ui/action-button';
-import { ScreenHeading } from '@/shared/components/ui/screen-heading';
+import { AppIcon } from '@/shared/components/ui/app-icon';
 import { StatusMessage } from '@/shared/components/ui/status-message';
-import { SurfaceCard } from '@/shared/components/ui/surface-card';
 import { ThemedText } from '@/shared/components/ui/themed-text';
 import { ThemedView } from '@/shared/components/ui/themed-view';
+import { useTheme } from '@/theme/hooks/use-theme';
 import { Spacing } from '@/theme/spacing';
 import { Layout, Radius, TypeScale } from '@/theme/tokens';
 
-import { formatPen, getWeekdayLabel, WEEKDAYS_MONDAY_FIRST } from '../booking-domain';
+import { getBarberServiceSummary } from '../booking-domain';
 import { useFocusedResource } from '../hooks/use-focused-resource';
 import { getPublicBarbershopDetail } from '../queries';
+import type { BookingStyle } from '../types';
+import { PublicBarberCard } from './public-barber-card';
+import { PublicBarbershopDetailSkeleton } from './public-barbershop-detail-skeleton';
+import { PublicBarbershopHero } from './public-barbershop-hero';
+import { PublicOpeningHours } from './public-opening-hours';
+import { PublicServiceCard } from './public-service-card';
 
 export function PublicBarbershopDetailScreen({ barbershopId }: { barbershopId: string | null }) {
+  const { width } = useWindowDimensions();
+  const theme = useTheme();
+  const isCompact = width < Layout.compactBreakpoint;
+  const isWide = width >= Layout.wideBreakpoint;
   const load = useCallback(
     () => (barbershopId ? getPublicBarbershopDetail(barbershopId) : Promise.resolve(null)),
     [barbershopId],
   );
   const { data, isLoading, error, reload } = useFocusedResource(load);
+  const stylesByServiceId = useMemo(() => {
+    const grouped = new Map<string, BookingStyle[]>();
+    for (const style of data?.styles ?? []) {
+      const serviceStyles = grouped.get(style.serviceId) ?? [];
+      serviceStyles.push(style);
+      grouped.set(style.serviceId, serviceStyles);
+    }
+    return grouped;
+  }, [data?.styles]);
 
   if (isLoading && !data) {
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Cargando barbería…</ThemedText>
-      </ThemedView>
-    );
+    return <PublicBarbershopDetailSkeleton isCompact={isCompact} isWide={isWide} />;
   }
 
   if (!barbershopId || !data) {
     return (
       <ThemedView style={styles.centered}>
-        <StatusMessage message={error ?? 'Esta barbería no está disponible públicamente.'} />
-        <ActionButton
-          label="Volver a explorar"
-          onPress={() => router.replace('/explore' as Href)}
-        />
+        <View style={[styles.errorIcon, { backgroundColor: theme.surfaceMuted }]}>
+          <AppIcon
+            color={theme.primary}
+            name={{ ios: 'storefront', android: 'storefront', web: 'storefront' }}
+            size={30}
+          />
+        </View>
+        <View style={styles.errorCopy}>
+          <ThemedText accessibilityRole="header" style={styles.errorTitle}>
+            Esta barbería no está disponible
+          </ThemedText>
+          <ThemedText style={styles.errorDescription} themeColor="textSecondary">
+            {error ?? 'Puede estar despublicada o el enlace ya no ser válido.'}
+          </ThemedText>
+        </View>
+        {barbershopId ? (
+          <ActionButton label="Reintentar" onPress={() => void reload()} variant="secondary" />
+        ) : null}
+        <ActionButton label="Volver a explorar" onPress={() => router.replace('/explore')} />
       </ThemedView>
     );
   }
 
-  const { barbershop, hours, services } = data;
-  const showLogo = barbershop.logoUrl?.startsWith('https://');
+  const { barbershop, hours, services, barbers, assignments } = data;
 
   return (
     <ThemedView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
-        {showLogo ? (
-          <Image
-            accessibilityLabel={`Logo de ${barbershop.name}`}
-            contentFit="cover"
-            source={{ uri: barbershop.logoUrl! }}
-            style={styles.logo}
+      <ScrollView
+        contentContainerStyle={[styles.content, isCompact ? styles.compactContent : null]}
+        contentInsetAdjustmentBehavior="automatic"
+        refreshControl={
+          <RefreshControl
+            colors={[theme.primary]}
+            onRefresh={() => void reload()}
+            refreshing={isLoading}
+            tintColor={theme.primary}
           />
-        ) : null}
-        <ScreenHeading
-          description={barbershop.description ?? 'Servicios profesionales con reserva previa.'}
-          eyebrow={barbershop.status === 'published' ? 'Agenda disponible' : 'Agenda pausada'}
-          title={barbershop.name}
+        }
+      >
+        <PublicBarbershopHero
+          barbershop={barbershop}
+          canBook={barbershop.status === 'published' && services.length > 0}
+          isWide={isWide}
+          onBook={() =>
+            router.push({
+              pathname: '/booking/[barbershopId]',
+              params: { barbershopId: barbershop.id },
+            })
+          }
         />
+
         {error ? <StatusMessage message={error} /> : null}
-        {barbershop.status === 'paused' ? (
-          <StatusMessage message="Puedes consultar la información, pero esta barbería no acepta nuevas reservas por ahora." />
-        ) : (
-          <ActionButton
-            disabled={services.length === 0}
-            label="Reservar una cita"
-            onPress={() => router.push(`/booking/${barbershop.id}` as Href)}
-          />
-        )}
 
-        <FavoriteBarbershopControls barbershopId={barbershop.id} />
-
-        <SurfaceCard style={styles.card}>
-          <ThemedText style={styles.sectionTitle}>Información</ThemedText>
-          {barbershop.address ? <InfoLine label="Dirección" value={barbershop.address} /> : null}
-          {barbershop.locationReference ? (
-            <InfoLine label="Referencia" value={barbershop.locationReference} />
-          ) : null}
-          {barbershop.phone ? <InfoLine label="Teléfono" value={barbershop.phone} /> : null}
-          {!barbershop.address && !barbershop.locationReference && !barbershop.phone ? (
-            <ThemedText themeColor="textSecondary">
-              Sin información de contacto publicada.
-            </ThemedText>
-          ) : null}
-        </SurfaceCard>
-
-        <SurfaceCard style={styles.card}>
-          <ThemedText style={styles.sectionTitle}>Horario habitual</ThemedText>
-          {WEEKDAYS_MONDAY_FIRST.map((weekday) => {
-            const dayHours = hours.filter((hour) => hour.weekday === weekday);
-            return (
-              <View key={weekday} style={styles.hourRow}>
-                <ThemedText style={styles.hourDay}>{getWeekdayLabel(weekday)}</ThemedText>
-                <ThemedText style={styles.hourValue} themeColor="textSecondary">
-                  {dayHours.length > 0
-                    ? dayHours.map((hour) => `${hour.startTime} – ${hour.endTime}`).join('\n')
-                    : 'Cerrado'}
-                </ThemedText>
-              </View>
-            );
-          })}
-        </SurfaceCard>
-
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Servicios</ThemedText>
-          {services.length === 0 ? (
-            <SurfaceCard style={styles.card}>
-              <ThemedText themeColor="textSecondary">
-                No hay servicios activos disponibles para reservar.
-              </ThemedText>
-            </SurfaceCard>
+        <DetailSection
+          description="Precios y tiempos claros antes de elegir tu turno."
+          title="Servicios"
+        >
+          {services.length > 0 ? (
+            <View style={styles.serviceList}>
+              {services.map((service) => (
+                <PublicServiceCard
+                  key={service.id}
+                  service={service}
+                  serviceStyles={stylesByServiceId.get(service.id) ?? []}
+                />
+              ))}
+            </View>
           ) : (
-            services.map((service) => (
-              <SurfaceCard key={service.id} style={styles.serviceCard}>
-                <View style={styles.serviceCopy}>
-                  <ThemedText style={styles.serviceName}>{service.name}</ThemedText>
-                  {service.description ? (
-                    <ThemedText style={styles.serviceDescription} themeColor="textSecondary">
-                      {service.description}
-                    </ThemedText>
-                  ) : null}
-                </View>
-                <View style={styles.serviceMeta}>
-                  <ThemedText style={styles.price}>{formatPen(service.price)}</ThemedText>
-                  <ThemedText themeColor="textSecondary">{service.durationMinutes} min</ThemedText>
-                </View>
-              </SurfaceCard>
-            ))
+            <DetailEmptyState message="Esta barbería aún no tiene servicios activos para reservar." />
           )}
-        </View>
-        <ActionButton
-          label="Actualizar información"
-          onPress={() => void reload()}
-          variant="secondary"
-        />
+        </DetailSection>
+
+        <DetailSection
+          description="Conoce al equipo disponible y los servicios que realiza cada profesional."
+          title="Barberos"
+        >
+          {barbers.length > 0 ? (
+            <View style={styles.barberGrid}>
+              {barbers.map((barber) => (
+                <PublicBarberCard
+                  barber={barber}
+                  key={barber.id}
+                  serviceSummary={getBarberServiceSummary(barber.id, services, assignments)}
+                />
+              ))}
+            </View>
+          ) : (
+            <DetailEmptyState message="No hay barberos activos visibles en este momento." />
+          )}
+        </DetailSection>
+
+        <DetailSection
+          description="Los turnos disponibles se validan en tiempo real al reservar."
+          title="Horario habitual"
+        >
+          <PublicOpeningHours hours={hours} />
+        </DetailSection>
       </ScrollView>
     </ThemedView>
   );
 }
 
-function InfoLine({ label, value }: { label: string; value: string }) {
+function DetailSection({
+  children,
+  description,
+  title,
+}: {
+  children: React.ReactNode;
+  description: string;
+  title: string;
+}) {
   return (
-    <View style={styles.infoLine}>
-      <ThemedText style={styles.infoLabel} themeColor="textSecondary">
-        {label}
+    <View style={styles.section}>
+      <View style={styles.sectionHeading}>
+        <ThemedText accessibilityRole="header" style={styles.sectionTitle}>
+          {title}
+        </ThemedText>
+        <ThemedText style={styles.sectionDescription} themeColor="textSecondary">
+          {description}
+        </ThemedText>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function DetailEmptyState({ message }: { message: string }) {
+  const theme = useTheme();
+
+  return (
+    <View style={[styles.emptyState, { backgroundColor: theme.surface }]}>
+      <ThemedText style={styles.emptyStateText} themeColor="textSecondary">
+        {message}
       </ThemedText>
-      <ThemedText style={styles.infoValue}>{value}</ThemedText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  centered: { flex: 1, justifyContent: 'center', gap: Spacing.three, padding: Spacing.four },
+  screen: {
+    flex: 1,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: Spacing.three,
+    padding: Spacing.four,
+  },
+  errorIcon: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.medium,
+    borderCurve: 'continuous',
+  },
+  errorCopy: {
+    maxWidth: 520,
+    gap: Spacing.one,
+  },
+  errorTitle: {
+    fontSize: TypeScale.title,
+    fontWeight: '700',
+  },
+  errorDescription: {
+    fontSize: TypeScale.body,
+    lineHeight: 24,
+  },
   content: {
     width: '100%',
-    maxWidth: Layout.contentMaxWidth,
+    maxWidth: Layout.clientContentMaxWidth,
     alignSelf: 'center',
+    gap: Spacing.five,
+    padding: Spacing.five,
+    paddingBottom: Spacing.seven,
+  },
+  compactContent: {
     gap: Spacing.four,
-    padding: Spacing.four,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.four,
     paddingBottom: Spacing.six,
   },
-  logo: { width: '100%', aspectRatio: 16 / 7, borderRadius: Radius.large },
-  card: { gap: Spacing.three, padding: Spacing.four },
-  section: { gap: Spacing.three },
-  sectionTitle: { fontSize: TypeScale.title, fontWeight: '700' },
-  infoLine: { gap: Spacing.one },
-  infoLabel: { fontSize: TypeScale.caption, fontWeight: '700' },
-  infoValue: { fontSize: TypeScale.body },
-  hourRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
-  hourDay: { width: 92, fontSize: TypeScale.label, fontWeight: '700' },
-  hourValue: { flex: 1, fontSize: TypeScale.label, lineHeight: 21 },
-  serviceCard: { flexDirection: 'row', gap: Spacing.three, padding: Spacing.four },
-  serviceCopy: { flex: 1, gap: Spacing.one },
-  serviceName: { fontSize: TypeScale.body, fontWeight: '700' },
-  serviceDescription: { fontSize: TypeScale.label, lineHeight: 20 },
-  serviceMeta: { alignItems: 'flex-end', gap: Spacing.one },
-  price: { fontSize: TypeScale.body, fontWeight: '700' },
+  section: {
+    gap: Spacing.three,
+  },
+  sectionHeading: {
+    maxWidth: 680,
+    gap: Spacing.one,
+  },
+  sectionTitle: {
+    fontSize: TypeScale.title,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    lineHeight: 28,
+  },
+  sectionDescription: {
+    fontSize: TypeScale.label,
+    lineHeight: 21,
+  },
+  serviceList: {
+    gap: Spacing.three,
+  },
+  barberGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.three,
+  },
+  emptyState: {
+    borderRadius: Radius.large,
+    borderCurve: 'continuous',
+    padding: Spacing.four,
+  },
+  emptyStateText: {
+    fontSize: TypeScale.label,
+    lineHeight: 21,
+  },
 });

@@ -14,7 +14,10 @@ export default function BookingLayout() {
         headerTintColor: theme.text,
       }}
     >
-      <Stack.Screen name="[barbershopId]" options={{ title: 'Nueva reserva' }} />
+      <Stack.Screen
+        name="[barbershopId]"
+        options={{ headerBackButtonDisplayMode: 'minimal', title: 'Reservar' }}
+      />
     </Stack>
   );
 }

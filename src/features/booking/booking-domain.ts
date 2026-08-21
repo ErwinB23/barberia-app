@@ -19,6 +19,160 @@ export type ReservationItemInput = {
   style_id: string | null;
 };
 
+export const BOOKING_FLOW_STEPS = [
+  { key: 'services', label: 'Servicios' },
+  { key: 'professional', label: 'Profesional' },
+  { key: 'schedule', label: 'Horario' },
+  { key: 'confirm', label: 'Confirmar' },
+] as const;
+
+export type BookingFlowStep = (typeof BOOKING_FLOW_STEPS)[number]['key'];
+
+type BookingStepSelection = {
+  selectedServiceCount: number;
+  eligibleBarberCount: number;
+  hasSelectedSlot: boolean;
+};
+
+type SlotWithStart = {
+  startsAt: string;
+};
+
+const SLOT_PERIODS = [
+  { key: 'morning', label: 'Mañana' },
+  { key: 'afternoon', label: 'Tarde' },
+  { key: 'night', label: 'Noche' },
+] as const;
+
+export function getNextBookingStep(step: BookingFlowStep): BookingFlowStep {
+  const index = BOOKING_FLOW_STEPS.findIndex((candidate) => candidate.key === step);
+  return BOOKING_FLOW_STEPS[Math.min(index + 1, BOOKING_FLOW_STEPS.length - 1)].key;
+}
+
+export function getPreviousBookingStep(step: BookingFlowStep): BookingFlowStep {
+  const index = BOOKING_FLOW_STEPS.findIndex((candidate) => candidate.key === step);
+  return BOOKING_FLOW_STEPS[Math.max(index - 1, 0)].key;
+}
+
+export function canContinueBookingStep(step: BookingFlowStep, selection: BookingStepSelection) {
+  if (step === 'services') return selection.selectedServiceCount > 0;
+  if (step === 'professional') return selection.eligibleBarberCount > 0;
+  if (step === 'schedule') return selection.hasSelectedSlot;
+  return selection.selectedServiceCount > 0 && selection.hasSelectedSlot;
+}
+
+export function getBookingDateRange(startDate: string, maxBookingDays: number) {
+  if (!isValidDateInput(startDate)) return [];
+
+  const [year, month, day] = startDate.split('-').map(Number);
+  const start = new Date(Date.UTC(year, month - 1, day));
+  const dayCount = Math.max(0, Math.floor(maxBookingDays));
+
+  return Array.from({ length: dayCount + 1 }, (_, offset) => {
+    const date = new Date(start);
+    date.setUTCDate(start.getUTCDate() + offset);
+    return date.toISOString().slice(0, 10);
+  });
+}
+
+export function groupAvailableSlotsByPeriod<T extends SlotWithStart>(slots: T[]) {
+  const grouped = new Map<(typeof SLOT_PERIODS)[number]['key'], T[]>(
+    SLOT_PERIODS.map((period) => [period.key, []]),
+  );
+
+  for (const slot of [...slots].sort((left, right) =>
+    left.startsAt.localeCompare(right.startsAt),
+  )) {
+    const hour = Number(
+      new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        hourCycle: 'h23',
+        timeZone: 'America/Lima',
+      }).format(new Date(slot.startsAt)),
+    );
+    const key = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'night';
+    grouped.get(key)?.push(slot);
+  }
+
+  return SLOT_PERIODS.map((period) => ({ ...period, slots: grouped.get(period.key) ?? [] })).filter(
+    (period) => period.slots.length > 0,
+  );
+}
+
+export function canStartBookingSubmission({
+  isSubmitting,
+  selectedServiceCount,
+  hasSelectedSlot,
+}: {
+  isSubmitting: boolean;
+  selectedServiceCount: number;
+  hasSelectedSlot: boolean;
+}) {
+  return !isSubmitting && selectedServiceCount > 0 && hasSelectedSlot;
+}
+
+export function getCreatedReservationHref(reservationId: string) {
+  return `/reservations/${encodeURIComponent(reservationId)}?created=1` as const;
+}
+
+type PublicBarbershopSearchable = {
+  name: string;
+  description: string | null;
+  address: string | null;
+  locationReference?: string | null;
+};
+
+type NamedService = {
+  id: string;
+  name: string;
+};
+
+function normalizeSearchText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('es-PE');
+}
+
+export function filterPublicBarbershops<T extends PublicBarbershopSearchable>(
+  barbershops: T[],
+  query: string,
+) {
+  const normalizedQuery = normalizeSearchText(query.trim());
+  if (!normalizedQuery) return barbershops;
+
+  return barbershops.filter((barbershop) =>
+    [
+      barbershop.name,
+      barbershop.description,
+      barbershop.address,
+      barbershop.locationReference,
+    ].some((value) => value && normalizeSearchText(value).includes(normalizedQuery)),
+  );
+}
+
+export function getBarberServiceSummary(
+  barberId: string,
+  services: NamedService[],
+  assignments: BarberServiceAssignment[],
+  visibleLimit = 3,
+) {
+  const assignedServiceIds = new Set(
+    assignments
+      .filter((assignment) => assignment.barberId === barberId)
+      .map((assignment) => assignment.serviceId),
+  );
+  const assignedServices = services.filter((service) => assignedServiceIds.has(service.id));
+
+  if (assignedServices.length === 0) return 'Servicios por confirmar';
+
+  const visibleNames = assignedServices.slice(0, visibleLimit).map((service) => service.name);
+  const hiddenCount = assignedServices.length - visibleNames.length;
+  return hiddenCount > 0
+    ? `${visibleNames.join(', ')} y ${hiddenCount} más`
+    : visibleNames.join(', ');
+}
+
 export function toggleServiceSelection(selectedServiceIds: string[], serviceId: string) {
   return selectedServiceIds.includes(serviceId)
     ? selectedServiceIds.filter((selectedId) => selectedId !== serviceId)
