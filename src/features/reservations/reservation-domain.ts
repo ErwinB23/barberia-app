@@ -27,6 +27,22 @@ type ReservationServiceDescriptionSnapshots = {
   style_name_snapshot: string | null;
 };
 
+type ReservationServiceSummaryItem = {
+  serviceName: string;
+  styleName: string | null;
+};
+
+type RescheduleReviewSource = {
+  startsAt: string;
+  barberName: string;
+  items: ReservationServiceSummaryItem[];
+};
+
+type RescheduleReviewTarget = {
+  startsAt: string;
+  barberName: string;
+};
+
 const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
   confirmed: 'Confirmada',
   in_progress: 'En atención',
@@ -73,6 +89,64 @@ export function mapReservationServiceDescriptionSnapshots(
     serviceName: row.service_name_snapshot,
     styleName: row.style_name_snapshot,
   };
+}
+
+export function getReservationServiceSummary(
+  items: ReservationServiceSummaryItem[],
+  visibleLimit = 2,
+) {
+  if (items.length === 0) return 'Servicios de la reserva';
+
+  const visibleItems = items
+    .slice(0, visibleLimit)
+    .map((item) => (item.styleName ? `${item.serviceName} (${item.styleName})` : item.serviceName));
+  const hiddenCount = items.length - visibleItems.length;
+
+  return hiddenCount > 0
+    ? `${visibleItems.join(', ')} y ${hiddenCount} más`
+    : visibleItems.join(', ');
+}
+
+export function buildRescheduleReview(
+  current: RescheduleReviewSource,
+  next: RescheduleReviewTarget,
+) {
+  return {
+    current: { startsAt: current.startsAt, barberName: current.barberName },
+    next,
+    services: current.items,
+  };
+}
+
+export function getCancellationPolicyMessage({
+  isLateCancellation,
+  isLateReschedule = false,
+  isRefundEligible,
+  paymentStatus,
+}: {
+  isLateCancellation: boolean;
+  isLateReschedule?: boolean;
+  isRefundEligible: boolean;
+  paymentStatus: PaymentStatus | null;
+}) {
+  if (isLateCancellation && !isRefundEligible) {
+    return 'La cancelación fue tardía y la política guardada para esta reserva no permite reembolso.';
+  }
+  if (isLateCancellation && isRefundEligible) {
+    return 'La cancelación fue tardía, pero la política guardada permite solicitar el reembolso. La barbería debe procesarlo.';
+  }
+  if (isLateReschedule && !isRefundEligible) {
+    return 'Una reprogramación tardía conservó la política sin reembolso para esta reserva.';
+  }
+  if (paymentStatus === 'refunded') return 'El pago de esta reserva ya fue reembolsado.';
+  if (paymentStatus === 'paid') {
+    return 'La cancelación no fue tardía. La barbería debe procesar el reembolso si aún figura pendiente.';
+  }
+  return 'La cancelación no fue tardía. No se registró un pago confirmado por reembolsar.';
+}
+
+export function getClientReservationHref(reservationId: string) {
+  return `/reservations/${encodeURIComponent(reservationId)}` as const;
 }
 
 export function canCancelReservation(reservation: ActionableReservation, now = new Date()) {

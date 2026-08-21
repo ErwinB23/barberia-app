@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 
 import { getNotificationErrorMessage } from '../errors';
+import { setNotificationReadStateLocally } from '../notification-open-flow';
 import { getNotifications } from '../queries';
 import type { UserNotification } from '../types';
 
@@ -34,11 +35,24 @@ export function useNotifications(userId: string | null) {
     }
   }, [userId]);
 
+  const updateReadStateLocally = useCallback((notificationId: string, isRead: boolean) => {
+    setNotifications((currentNotifications) =>
+      setNotificationReadStateLocally(currentNotifications, notificationId, isRead),
+    );
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load]),
   );
 
-  return { notifications, isLoading, isRefreshing, error, reload: load };
+  return {
+    notifications,
+    isLoading,
+    isRefreshing,
+    error,
+    reload: load,
+    updateReadStateLocally,
+  };
 }

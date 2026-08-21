@@ -48,8 +48,11 @@ export type ClientReservation = {
   refundPolicy: RefundPolicy | null;
   cancelledAt: string | null;
   items: ClientReservationItem[];
+  itemsUnavailable: boolean;
   payment: ClientReservationPayment | null;
+  paymentUnavailable: boolean;
   yapeSettings: ClientYapeSettings | null;
+  yapeSettingsUnavailable: boolean;
 };
 
 export type OperationalRole = 'barber' | 'administrator';

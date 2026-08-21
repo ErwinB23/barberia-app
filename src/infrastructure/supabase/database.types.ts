@@ -564,6 +564,7 @@ export type Database = {
         Row: {
           barbershop_id: string | null;
           created_at: string;
+          dismissed_at: string | null;
           id: string;
           invitation_id: string | null;
           is_read: boolean;
@@ -578,6 +579,7 @@ export type Database = {
         Insert: {
           barbershop_id?: string | null;
           created_at?: string;
+          dismissed_at?: string | null;
           id?: string;
           invitation_id?: string | null;
           is_read?: boolean;
@@ -592,6 +594,7 @@ export type Database = {
         Update: {
           barbershop_id?: string | null;
           created_at?: string;
+          dismissed_at?: string | null;
           id?: string;
           invitation_id?: string | null;
           is_read?: boolean;
@@ -1085,6 +1088,10 @@ export type Database = {
         Returns: string;
       };
       deactivate_barber: { Args: { p_barber_id: string }; Returns: undefined };
+      dismiss_notification: {
+        Args: { p_notification_id: string };
+        Returns: boolean;
+      };
       enable_own_barber_profile: {
         Args: {
           p_barbershop_id: string;

@@ -14,7 +14,7 @@ export default function ReservationsLayout() {
         headerTintColor: theme.text,
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Mis reservas' }} />
+      <Stack.Screen name="index" options={{ headerShown: false, title: 'Mis reservas' }} />
       <Stack.Screen name="[reservationId]/index" options={{ title: 'Detalle de reserva' }} />
       <Stack.Screen name="[reservationId]/reschedule" options={{ title: 'Reprogramar' }} />
     </Stack>

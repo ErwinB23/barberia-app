@@ -1,17 +1,19 @@
-import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router, type Href } from 'expo-router';
 
 import { useAuth } from '@/features/auth/hooks/use-auth';
-import { formatLimaDate, formatLimaTime, formatPen, useFocusedResource } from '@/features/booking';
+import { formatLimaDate, formatLimaTime, useFocusedResource } from '@/features/booking';
 import { ActionButton } from '@/shared/components/ui/action-button';
+import { AppIcon } from '@/shared/components/ui/app-icon';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
 import { ThemedText } from '@/shared/components/ui/themed-text';
 import { ThemedView } from '@/shared/components/ui/themed-view';
+import { useTheme } from '@/theme/hooks/use-theme';
 import { Spacing } from '@/theme/spacing';
-import { Layout, TypeScale } from '@/theme/tokens';
+import { Layout, Radius, TypeScale } from '@/theme/tokens';
 
 import { cancelReservation } from '../actions';
 import { getReservationErrorMessage } from '../errors';
@@ -19,9 +21,12 @@ import { getClientReservation } from '../queries';
 import {
   canCancelReservation,
   canRescheduleReservation,
-  getReservationStatusLabel,
+  getClientReservationHref,
 } from '../reservation-domain';
+import type { ClientReservation } from '../types';
 import { ClientReservationPaymentCard } from './client-reservation-payment-card';
+import { ReservationReceipt } from './reservation-receipt';
+import { ReservationDetailSkeleton, ReservationLoadError } from './reservation-screen-states';
 
 export function ReservationDetailScreen({
   reservationId,
@@ -30,9 +35,13 @@ export function ReservationDetailScreen({
   reservationId: string | null;
   created?: boolean;
 }) {
+  const theme = useTheme();
+  const { width } = useWindowDimensions();
   const { user } = useAuth();
+  const isCancellingRef = useRef(false);
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const load = useCallback(
@@ -41,161 +50,238 @@ export function ReservationDetailScreen({
     [reservationId, user],
   );
   const { data, isLoading, error, reload } = useFocusedResource(load);
+  const isWide = width >= Layout.wideBreakpoint;
+
+  const refresh = async () => {
+    setIsRefreshing(true);
+    await reload();
+    setIsRefreshing(false);
+  };
 
   const cancel = async () => {
-    if (!data) return;
+    if (!data || isCancellingRef.current) return;
+    isCancellingRef.current = true;
     setIsCancelling(true);
     setMutationError(null);
+    setFeedback(null);
     try {
       await cancelReservation(data.id);
       setShowCancelConfirmation(false);
       setFeedback(
-        'La reserva fue cancelada. Revisa abajo la política aplicada y el estado del pago.',
+        'La reserva fue cancelada. El detalle ya muestra la política y el estado del pago aplicados.',
       );
       await reload();
     } catch (cancellationError) {
       setMutationError(getReservationErrorMessage(cancellationError));
     } finally {
+      isCancellingRef.current = false;
       setIsCancelling(false);
     }
   };
 
-  if (isLoading && !data) {
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Cargando reserva…</ThemedText>
-      </ThemedView>
-    );
-  }
+  if (isLoading && data === null) return <ReservationDetailSkeleton />;
 
   if (!reservationId || !data) {
     return (
-      <ThemedView style={styles.centered}>
-        <StatusMessage message={error ?? 'No encontramos esta reserva entre tus citas.'} />
-        <ActionButton
-          label="Ver mis reservas"
-          onPress={() => router.replace('/reservations' as Href)}
-        />
-      </ThemedView>
+      <ReservationLoadError
+        message={error ?? 'No encontramos esta reserva entre tus citas.'}
+        onBack={() => router.replace('/reservations' as Href)}
+        onRetry={() => void reload()}
+      />
     );
   }
 
   return (
     <ThemedView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
-        <ScreenHeading
-          description={`${formatLimaDate(data.startsAt)} · ${formatLimaTime(data.startsAt)} – ${formatLimaTime(data.endsAt)}`}
-          eyebrow={getReservationStatusLabel(data.status)}
-          title={created ? 'Reserva confirmada' : data.barbershopName}
-        />
-        {created ? (
-          <StatusMessage
-            message="Tu cita quedó confirmada. El pago puede permanecer pendiente según el método elegido."
-            tone="success"
+      <ScrollView
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
+        refreshControl={
+          <RefreshControl
+            colors={[theme.primary]}
+            onRefresh={() => void refresh()}
+            refreshing={isRefreshing}
+            tintColor={theme.primary}
           />
-        ) : null}
-        {feedback ? <StatusMessage message={feedback} tone="success" /> : null}
-        {error || mutationError ? <StatusMessage message={mutationError ?? error!} /> : null}
-
-        <SurfaceCard style={styles.card}>
-          <ThemedText style={styles.sectionTitle}>Cita</ThemedText>
-          <DetailLine label="Barbería" value={data.barbershopName} />
-          <DetailLine label="Profesional" value={data.barberName} />
-          <DetailLine label="Estado" value={getReservationStatusLabel(data.status)} />
-          <DetailLine label="Duración" value={`${data.totalDurationMinutes} min`} />
-          <DetailLine label="Total" value={formatPen(data.totalPrice)} />
-          {data.rescheduleCount > 0 ? <DetailLine label="Reprogramaciones" value="1 de 1" /> : null}
-        </SurfaceCard>
-
-        <SurfaceCard style={styles.card}>
-          <ThemedText style={styles.sectionTitle}>Servicios reservados</ThemedText>
-          {data.items.map((item) => (
-            <View key={item.id} style={styles.itemRow}>
-              <View style={styles.itemCopy}>
-                <ThemedText style={styles.itemName}>{item.serviceName}</ThemedText>
-                {item.styleName ? (
-                  <ThemedText themeColor="textSecondary">Estilo: {item.styleName}</ThemedText>
-                ) : null}
-              </View>
-              <View style={styles.itemMeta}>
-                <ThemedText>{formatPen(item.priceAtBooking)}</ThemedText>
-                <ThemedText themeColor="textSecondary">{item.durationAtBooking} min</ThemedText>
-              </View>
-            </View>
-          ))}
-        </SurfaceCard>
-
-        <ClientReservationPaymentCard onRefresh={reload} reservation={data} />
-
-        {showCancelConfirmation ? (
-          <SurfaceCard style={styles.warningCard}>
-            <ThemedText style={styles.sectionTitle}>¿Cancelar esta cita?</ThemedText>
-            <ThemedText themeColor="textSecondary">
-              La base de datos aplicará la política snapshot y determinará si la cancelación es
-              tardía y si existe elegibilidad de reembolso.
-            </ThemedText>
-            <ActionButton
-              isLoading={isCancelling}
-              label="Sí, cancelar reserva"
-              onPress={() => void cancel()}
-              variant="danger"
+        }
+      >
+        <View style={styles.heading}>
+          <ScreenHeading
+            description={
+              created
+                ? 'Tu cita está confirmada. Aquí encontrarás el comprobante y el estado del pago.'
+                : `${data.barbershopName}, ${formatLimaDate(data.startsAt)} a las ${formatLimaTime(data.startsAt)}`
+            }
+            eyebrow={created ? 'Reserva creada' : 'Tu reserva'}
+            title={created ? 'Reserva confirmada' : 'Detalle de tu cita'}
+          />
+          {created ? (
+            <StatusMessage
+              message="La reserva ya está registrada. El pago puede continuar pendiente según el método elegido."
+              tone="success"
             />
-            <ActionButton
-              disabled={isCancelling}
-              label="Conservar reserva"
-              onPress={() => setShowCancelConfirmation(false)}
-              variant="secondary"
-            />
-          </SurfaceCard>
-        ) : null}
+          ) : null}
+          {feedback ? <StatusMessage message={feedback} tone="success" /> : null}
+          {error || mutationError ? <StatusMessage message={mutationError ?? error!} /> : null}
+        </View>
 
-        {canRescheduleReservation(data) ? (
-          <ActionButton
-            label="Reprogramar una vez"
-            onPress={() => router.push(`/reservations/${data.id}/reschedule` as Href)}
-            variant="secondary"
-          />
-        ) : null}
-        {canCancelReservation(data) && !showCancelConfirmation ? (
-          <ActionButton
-            label="Cancelar reserva"
-            onPress={() => setShowCancelConfirmation(true)}
-            variant="danger"
-          />
-        ) : null}
-        <ActionButton label="Actualizar" onPress={() => void reload()} variant="secondary" />
+        <View style={[styles.layout, isWide ? styles.wideLayout : null]}>
+          <View style={styles.mainColumn}>
+            <ReservationReceipt reservation={data} />
+          </View>
+          <View style={styles.sideColumn}>
+            <ClientReservationPaymentCard onRefresh={reload} reservation={data} />
+            <ReservationActions
+              isCancelling={isCancelling}
+              onCancel={() => void cancel()}
+              onCloseCancellation={() => setShowCancelConfirmation(false)}
+              onOpenCancellation={() => setShowCancelConfirmation(true)}
+              reservation={data}
+              showCancelConfirmation={showCancelConfirmation}
+            />
+            {created ? (
+              <ActionButton
+                label="Volver al inicio"
+                onPress={() => router.replace('/' as Href)}
+                variant="secondary"
+              />
+            ) : null}
+          </View>
+        </View>
       </ScrollView>
     </ThemedView>
   );
 }
 
-function DetailLine({ label, value }: { label: string; value: string }) {
+function ReservationActions({
+  reservation,
+  showCancelConfirmation,
+  isCancelling,
+  onOpenCancellation,
+  onCloseCancellation,
+  onCancel,
+}: {
+  reservation: ClientReservation;
+  showCancelConfirmation: boolean;
+  isCancelling: boolean;
+  onOpenCancellation: () => void;
+  onCloseCancellation: () => void;
+  onCancel: () => void;
+}) {
+  const theme = useTheme();
+  const canReschedule = canRescheduleReservation(reservation);
+  const canCancel = canCancelReservation(reservation);
+  const canManage = canReschedule || canCancel;
+  const usedReschedule = reservation.rescheduleCount >= 1;
+
   return (
-    <View style={styles.detailLine}>
-      <ThemedText themeColor="textSecondary">{label}</ThemedText>
-      <ThemedText style={styles.detailValue}>{value}</ThemedText>
-    </View>
+    <SurfaceCard style={styles.actionsCard}>
+      <View style={styles.actionHeading}>
+        <View style={[styles.actionIcon, { backgroundColor: theme.surfaceMuted }]}>
+          <AppIcon
+            color={theme.primary}
+            name={{ ios: 'calendar.badge.clock', android: 'edit_calendar', web: 'edit_calendar' }}
+            size={20}
+          />
+        </View>
+        <View style={styles.actionHeadingCopy}>
+          <ThemedText style={styles.actionTitle}>Gestionar cita</ThemedText>
+          <ThemedText style={styles.actionDescription} themeColor="textSecondary">
+            Las opciones disponibles respetan el estado y las reglas de tu reserva.
+          </ThemedText>
+        </View>
+      </View>
+
+      {showCancelConfirmation ? (
+        <View
+          accessibilityLiveRegion="polite"
+          style={[
+            styles.cancelConfirmation,
+            { backgroundColor: theme.dangerSurface, borderColor: theme.danger },
+          ]}
+        >
+          <ThemedText style={styles.cancelTitle}>¿Cancelar esta cita?</ThemedText>
+          <ThemedText style={styles.cancelCopy}>
+            Esta acción no se puede deshacer. Si la cancelación se considera tardía, se aplicará la
+            política guardada para la reserva. La barbería procesa los reembolsos elegibles.
+          </ThemedText>
+          <ActionButton
+            isLoading={isCancelling}
+            label="Sí, cancelar cita"
+            onPress={onCancel}
+            variant="danger"
+          />
+          <ActionButton
+            disabled={isCancelling}
+            label="Conservar cita"
+            onPress={onCloseCancellation}
+            variant="secondary"
+          />
+        </View>
+      ) : (
+        <>
+          {canReschedule ? (
+            <ActionButton
+              label="Reprogramar cita"
+              onPress={() =>
+                router.push(`${getClientReservationHref(reservation.id)}/reschedule` as Href)
+              }
+              variant="secondary"
+            />
+          ) : null}
+          {usedReschedule && reservation.status === 'confirmed' ? (
+            <ThemedText style={styles.actionNote} themeColor="textSecondary">
+              Ya utilizaste la única reprogramación disponible para esta reserva.
+            </ThemedText>
+          ) : null}
+          {canCancel ? (
+            <ActionButton label="Cancelar reserva" onPress={onOpenCancellation} variant="danger" />
+          ) : null}
+          {!canManage && !usedReschedule ? (
+            <ThemedText style={styles.actionNote} themeColor="textSecondary">
+              Esta reserva ya no admite cambios desde la aplicación.
+            </ThemedText>
+          ) : null}
+        </>
+      )}
+    </SurfaceCard>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  centered: { flex: 1, justifyContent: 'center', gap: Spacing.three, padding: Spacing.four },
   content: {
     width: '100%',
-    maxWidth: Layout.contentMaxWidth,
+    maxWidth: Layout.clientContentMaxWidth,
     alignSelf: 'center',
     gap: Spacing.four,
     padding: Spacing.four,
     paddingBottom: Spacing.six,
   },
-  card: { gap: Spacing.three, padding: Spacing.four },
-  warningCard: { gap: Spacing.three, padding: Spacing.four },
-  sectionTitle: { fontSize: TypeScale.title, fontWeight: '700' },
-  detailLine: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
-  detailValue: { flexShrink: 1, textAlign: 'right', fontWeight: '700' },
-  itemRow: { flexDirection: 'row', gap: Spacing.three },
-  itemCopy: { flex: 1, gap: Spacing.one },
-  itemName: { fontWeight: '700' },
-  itemMeta: { alignItems: 'flex-end', gap: Spacing.one },
+  heading: { maxWidth: Layout.contentMaxWidth, gap: Spacing.three },
+  layout: { gap: Spacing.four },
+  wideLayout: { flexDirection: 'row', alignItems: 'flex-start' },
+  mainColumn: { minWidth: 0, flex: 1.35 },
+  sideColumn: { minWidth: 0, flex: 0.85, gap: Spacing.four },
+  actionsCard: { gap: Spacing.three, padding: Spacing.four },
+  actionHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
+  actionIcon: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.medium,
+  },
+  actionHeadingCopy: { minWidth: 0, flex: 1, gap: Spacing.one },
+  actionTitle: { fontSize: TypeScale.title, fontWeight: '800' },
+  actionDescription: { fontSize: TypeScale.label, lineHeight: 20 },
+  actionNote: { fontSize: TypeScale.label, lineHeight: 21 },
+  cancelConfirmation: {
+    gap: Spacing.three,
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    padding: Spacing.three,
+  },
+  cancelTitle: { fontSize: TypeScale.title, fontWeight: '800' },
+  cancelCopy: { fontSize: TypeScale.label, lineHeight: 22 },
 });

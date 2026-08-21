@@ -1,8 +1,19 @@
 export const Radius = {
   small: 10,
   medium: 14,
-  large: 24,
+  large: 20,
   pill: 999,
+} as const;
+
+export const Motion = {
+  press: 120,
+  state: 180,
+  exit: 120,
+} as const;
+
+export const Opacity = {
+  pressed: 0.76,
+  disabled: 0.5,
 } as const;
 
 export const Layout = {
@@ -11,6 +22,8 @@ export const Layout = {
   authMaxWidth: 1080,
   formMaxWidth: 520,
   contentMaxWidth: 760,
+  feedMaxWidth: 880,
+  clientContentMaxWidth: 1120,
 } as const;
 
 export const TypeScale = {

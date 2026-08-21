@@ -14,7 +14,7 @@ export default function ExploreLayout() {
         headerTintColor: theme.text,
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Explorar' }} />
+      <Stack.Screen name="index" options={{ headerShown: false, title: 'Explorar' }} />
       <Stack.Screen name="[barbershopId]" options={{ title: 'Barbería' }} />
     </Stack>
   );

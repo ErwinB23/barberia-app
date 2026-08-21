@@ -1,20 +1,27 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
 import { formatPen } from '@/features/booking';
 import { ActionButton } from '@/shared/components/ui/action-button';
+import { AppIcon } from '@/shared/components/ui/app-icon';
 import { StatusMessage } from '@/shared/components/ui/status-message';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
 import { ThemedText } from '@/shared/components/ui/themed-text';
+import { useTheme } from '@/theme/hooks/use-theme';
 import { Spacing } from '@/theme/spacing';
 import { Radius, TypeScale } from '@/theme/tokens';
 
 import { changePaymentMethod } from '../actions';
 import { canClientChangePaymentMethod } from '../appointment-domain';
 import { getReservationErrorMessage } from '../errors';
-import { getPaymentMethodLabel, getPaymentStatusLabel } from '../reservation-domain';
+import {
+  getCancellationPolicyMessage,
+  getPaymentMethodLabel,
+  getPaymentStatusLabel,
+} from '../reservation-domain';
 import type { ClientReservation, PaymentMethod } from '../types';
+import { PaymentStatusBadge } from './appointment-status-badge';
 
 export function ClientReservationPaymentCard({
   reservation,
@@ -23,6 +30,8 @@ export function ClientReservationPaymentCard({
   reservation: ClientReservation;
   onRefresh: () => Promise<void>;
 }) {
+  const theme = useTheme();
+  const isChangingRef = useRef(false);
   const [nextMethod, setNextMethod] = useState<PaymentMethod | null>(null);
   const [isChanging, setIsChanging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +40,8 @@ export function ClientReservationPaymentCard({
   const showQr = reservation.yapeSettings?.qrUrl?.startsWith('https://');
 
   const changeMethod = async () => {
-    if (!payment || !nextMethod) return;
+    if (!payment || !nextMethod || isChangingRef.current) return;
+    isChangingRef.current = true;
     setIsChanging(true);
     setError(null);
     setFeedback(null);
@@ -44,42 +54,93 @@ export function ClientReservationPaymentCard({
     } catch (changeError) {
       setError(getReservationErrorMessage(changeError));
     } finally {
+      isChangingRef.current = false;
       setIsChanging(false);
     }
   };
 
   return (
-    <>
+    <View style={styles.stack}>
       <SurfaceCard style={styles.card}>
-        <ThemedText style={styles.sectionTitle}>Pago</ThemedText>
-        {payment ? (
+        <View style={styles.headingRow}>
+          <View style={[styles.headingIcon, { backgroundColor: theme.surfaceMuted }]}>
+            <AppIcon
+              color={theme.primary}
+              name={{ ios: 'creditcard', android: 'payments', web: 'payments' }}
+              size={20}
+            />
+          </View>
+          <View style={styles.headingCopy}>
+            <ThemedText style={styles.sectionTitle}>Pago</ThemedText>
+            <ThemedText style={styles.sectionDescription} themeColor="textSecondary">
+              Estado e instrucciones de esta reserva.
+            </ThemedText>
+          </View>
+          {payment ? <PaymentStatusBadge status={payment.status} /> : null}
+        </View>
+
+        {reservation.paymentUnavailable ? (
+          <View style={styles.secondaryError}>
+            <StatusMessage message="No pudimos cargar el estado del pago. La reserva sigue disponible y no se realizó ningún cambio." />
+            <ActionButton
+              label="Reintentar pago"
+              onPress={() => void onRefresh()}
+              variant="secondary"
+            />
+          </View>
+        ) : payment ? (
           <>
-            <DetailLine label="Método" value={getPaymentMethodLabel(payment.method)} />
-            <DetailLine label="Estado" value={getPaymentStatusLabel(payment.status)} />
-            <DetailLine label="Importe" value={formatPen(payment.amount)} />
+            <View style={styles.details}>
+              <DetailLine label="Método" value={getPaymentMethodLabel(payment.method)} />
+              <DetailLine label="Importe" value={formatPen(payment.amount)} />
+              <DetailLine label="Estado" value={getPaymentStatusLabel(payment.status)} />
+            </View>
 
             {payment.method === 'yape' && payment.status === 'pending' ? (
-              <View style={styles.yapeBox}>
+              <View
+                style={[
+                  styles.yapeBox,
+                  { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
+                ]}
+              >
+                <View style={styles.yapeHeading}>
+                  <ThemedText style={styles.yapeTitle}>Paga con Yape</ThemedText>
+                  <ThemedText style={styles.yapeCopy} themeColor="textSecondary">
+                    Usa los datos de la barbería. El pago seguirá pendiente hasta su confirmación.
+                  </ThemedText>
+                </View>
                 {showQr ? (
                   <Image
                     accessibilityLabel="Código QR de Yape de la barbería"
                     contentFit="contain"
                     source={{ uri: reservation.yapeSettings!.qrUrl! }}
-                    style={styles.qr}
+                    style={[styles.qr, { backgroundColor: theme.surface }]}
                   />
                 ) : null}
-                {reservation.yapeSettings?.holderName ? (
-                  <ThemedText selectable>Titular: {reservation.yapeSettings.holderName}</ThemedText>
+                <View style={styles.yapeDetails}>
+                  {reservation.yapeSettings?.holderName ? (
+                    <DetailLine label="Titular" value={reservation.yapeSettings.holderName} />
+                  ) : null}
+                  {reservation.yapeSettings?.phone ? (
+                    <DetailLine label="Número" value={reservation.yapeSettings.phone} selectable />
+                  ) : null}
+                </View>
+                {reservation.yapeSettingsUnavailable ? (
+                  <View style={styles.secondaryError}>
+                    <StatusMessage message="No pudimos cargar las instrucciones de Yape. La reserva y su pago permanecen sin cambios." />
+                    <ActionButton
+                      label="Reintentar instrucciones"
+                      onPress={() => void onRefresh()}
+                      variant="secondary"
+                    />
+                  </View>
                 ) : null}
-                {reservation.yapeSettings?.phone ? (
-                  <ThemedText selectable>Número: {reservation.yapeSettings.phone}</ThemedText>
-                ) : null}
-                {!showQr &&
+                {!reservation.yapeSettingsUnavailable &&
+                !showQr &&
                 !reservation.yapeSettings?.holderName &&
                 !reservation.yapeSettings?.phone ? (
-                  <ThemedText themeColor="textSecondary">
-                    Los datos de Yape no están disponibles para esta reserva. El pago permanece
-                    pendiente hasta que la barbería lo confirme.
+                  <ThemedText style={styles.yapeCopy} themeColor="textSecondary">
+                    La barbería aún no tiene instrucciones de Yape disponibles para mostrar.
                   </ThemedText>
                 ) : null}
               </View>
@@ -94,17 +155,23 @@ export function ClientReservationPaymentCard({
             ) : null}
           </>
         ) : (
-          <ThemedText themeColor="textSecondary">No hay información de pago disponible.</ThemedText>
+          <ThemedText style={styles.emptyPayment} themeColor="textSecondary">
+            No hay información de pago disponible para esta reserva.
+          </ThemedText>
         )}
 
         {reservation.status === 'cancelled' ? (
-          <ThemedText style={styles.policyNote} themeColor="textSecondary">
-            {reservation.isLateCancellation
-              ? reservation.isRefundEligible
-                ? 'La cancelación fue tardía, pero el snapshot de política marca el pago como elegible para reembolso. El estado final lo gestiona un administrador.'
-                : 'La cancelación fue tardía y el snapshot de política no considera el pago elegible para reembolso.'
-              : 'La cancelación no fue tardía. Consulta el estado del pago para confirmar si el reembolso ya fue procesado.'}
-          </ThemedText>
+          <View style={[styles.policyNote, { backgroundColor: theme.surfaceMuted }]}>
+            <ThemedText style={styles.policyTitle}>Política aplicada</ThemedText>
+            <ThemedText style={styles.policyCopy} themeColor="textSecondary">
+              {getCancellationPolicyMessage({
+                isLateCancellation: reservation.isLateCancellation,
+                isLateReschedule: reservation.isLateReschedule,
+                isRefundEligible: reservation.isRefundEligible,
+                paymentStatus: payment?.status ?? null,
+              })}
+            </ThemedText>
+          </View>
         ) : null}
         {feedback ? <StatusMessage message={feedback} tone="success" /> : null}
         {error ? <StatusMessage message={error} /> : null}
@@ -113,8 +180,9 @@ export function ClientReservationPaymentCard({
       {nextMethod ? (
         <SurfaceCard style={styles.confirmationCard}>
           <ThemedText style={styles.sectionTitle}>Cambiar método de pago</ThemedText>
-          <ThemedText themeColor="textSecondary">
-            El pago continuará pendiente y cambiará a {getPaymentMethodLabel(nextMethod)}.
+          <ThemedText style={styles.confirmationCopy} themeColor="textSecondary">
+            El importe no cambia. El pago continuará pendiente con el método{' '}
+            {getPaymentMethodLabel(nextMethod)}.
           </ThemedText>
           <ActionButton
             isLoading={isChanging}
@@ -123,37 +191,77 @@ export function ClientReservationPaymentCard({
           />
           <ActionButton
             disabled={isChanging}
-            label="Cancelar"
+            label="Volver"
             onPress={() => setNextMethod(null)}
             variant="secondary"
           />
         </SurfaceCard>
       ) : null}
-    </>
+    </View>
   );
 }
 
-function DetailLine({ label, value }: { label: string; value: string }) {
+function DetailLine({
+  label,
+  value,
+  selectable = false,
+}: {
+  label: string;
+  value: string;
+  selectable?: boolean;
+}) {
   return (
     <View style={styles.detailLine}>
-      <ThemedText themeColor="textSecondary">{label}</ThemedText>
-      <ThemedText style={styles.detailValue}>{value}</ThemedText>
+      <ThemedText style={styles.detailLabel} themeColor="textSecondary">
+        {label}
+      </ThemedText>
+      <ThemedText selectable={selectable} style={styles.detailValue}>
+        {value}
+      </ThemedText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: Spacing.three, padding: Spacing.four },
-  confirmationCard: { gap: Spacing.three, padding: Spacing.four },
-  sectionTitle: { fontSize: TypeScale.title, fontWeight: '700' },
-  detailLine: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
-  detailValue: { flexShrink: 1, textAlign: 'right', fontWeight: '700' },
-  yapeBox: {
+  stack: { gap: Spacing.three },
+  card: { gap: Spacing.four, padding: Spacing.four },
+  headingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
+  headingIcon: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
-    gap: Spacing.two,
+    justifyContent: 'center',
+    borderRadius: Radius.medium,
+  },
+  headingCopy: { minWidth: 0, flex: 1, gap: Spacing.one },
+  sectionTitle: { fontSize: TypeScale.title, fontWeight: '800' },
+  sectionDescription: { fontSize: TypeScale.label, lineHeight: 20 },
+  details: { gap: Spacing.three },
+  detailLine: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
+  detailLabel: { flexShrink: 0, fontSize: TypeScale.label },
+  detailValue: {
+    minWidth: 0,
+    flexShrink: 1,
+    textAlign: 'right',
+    fontSize: TypeScale.label,
+    fontWeight: '800',
+  },
+  yapeBox: {
+    gap: Spacing.three,
+    borderWidth: 1,
     borderRadius: Radius.medium,
     padding: Spacing.three,
   },
-  qr: { width: 180, height: 180, borderRadius: Radius.medium },
-  policyNote: { fontSize: TypeScale.label, lineHeight: 21 },
+  yapeHeading: { gap: Spacing.one },
+  yapeTitle: { fontSize: TypeScale.body, fontWeight: '800' },
+  yapeCopy: { fontSize: TypeScale.label, lineHeight: 21 },
+  qr: { width: 180, height: 180, alignSelf: 'center', borderRadius: Radius.medium },
+  yapeDetails: { gap: Spacing.two },
+  secondaryError: { gap: Spacing.two },
+  emptyPayment: { fontSize: TypeScale.label, lineHeight: 21 },
+  policyNote: { gap: Spacing.one, borderRadius: Radius.medium, padding: Spacing.three },
+  policyTitle: { fontSize: TypeScale.label, fontWeight: '800' },
+  policyCopy: { fontSize: TypeScale.label, lineHeight: 21 },
+  confirmationCard: { gap: Spacing.three, padding: Spacing.four },
+  confirmationCopy: { fontSize: TypeScale.body, lineHeight: 24 },
 });

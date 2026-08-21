@@ -3,7 +3,11 @@ import { StyleSheet, View, type ViewProps } from 'react-native';
 import { useTheme } from '@/theme/hooks/use-theme';
 import { Radius } from '@/theme/tokens';
 
-export function SurfaceCard({ style, ...props }: ViewProps) {
+type SurfaceCardProps = ViewProps & {
+  elevated?: boolean;
+};
+
+export function SurfaceCard({ elevated = false, style, ...props }: SurfaceCardProps) {
   const theme = useTheme();
 
   return (
@@ -13,7 +17,7 @@ export function SurfaceCard({ style, ...props }: ViewProps) {
         {
           backgroundColor: theme.surface,
           borderColor: theme.border,
-          boxShadow: `0 12px 32px ${theme.cardShadow}`,
+          boxShadow: elevated ? `0 8px 24px ${theme.cardShadow}` : undefined,
         },
         style,
       ]}
