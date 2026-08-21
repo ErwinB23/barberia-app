@@ -27,6 +27,13 @@ export type OperationalActions = {
   canRefund: boolean;
 };
 
+export type BarberAppointmentControls = {
+  primaryAction: 'start' | 'complete' | null;
+  canMarkNoShow: boolean;
+  canConfirmCash: boolean;
+  paymentGuidance: string | null;
+};
+
 type FilterableAppointment = {
   id: string;
   barberId: string;
@@ -119,6 +126,44 @@ export function getOperationalActions(
       input.reservationStatus === 'cancelled' &&
       input.isRefundEligible &&
       input.paymentStatus === 'paid',
+  };
+}
+
+export function getBarberAppointmentControls(
+  actions: OperationalActions,
+  paymentMethod: PaymentMethod | null,
+  paymentStatus: PaymentStatus | null,
+): BarberAppointmentControls {
+  return {
+    primaryAction: actions.canStart ? 'start' : actions.canComplete ? 'complete' : null,
+    canMarkNoShow: actions.canMarkNoShow,
+    canConfirmCash: actions.canConfirmCash,
+    paymentGuidance:
+      paymentMethod === 'yape' && paymentStatus === 'pending'
+        ? 'Confirmación pendiente del administrador.'
+        : null,
+  };
+}
+
+export function getAgendaEmptyStateCopy(period: AgendaPeriod, hasActiveStatusFilter = false) {
+  if (hasActiveStatusFilter) {
+    return {
+      title: 'Sin citas con este estado',
+      description: 'Prueba otro filtro para consultar tu agenda.',
+    };
+  }
+  if (period === 'today') {
+    return { title: 'Sin citas para hoy', description: 'Tu jornada está libre por ahora.' };
+  }
+  if (period === 'upcoming') {
+    return {
+      title: 'No tienes próximas citas programadas',
+      description: 'Las nuevas reservas aparecerán aquí.',
+    };
+  }
+  return {
+    title: 'Aún no tienes citas anteriores',
+    description: 'Tu historial se mostrará aquí después de cada jornada.',
   };
 }
 

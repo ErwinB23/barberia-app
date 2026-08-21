@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
@@ -6,7 +6,6 @@ import { useAuth } from '@/features/auth/hooks/use-auth';
 import { ActionButton } from '@/shared/components/ui/action-button';
 import { FormField } from '@/shared/components/ui/form-field';
 import { StatusMessage } from '@/shared/components/ui/status-message';
-import { ThemedText } from '@/shared/components/ui/themed-text';
 import { ThemedView } from '@/shared/components/ui/themed-view';
 import { Spacing } from '@/theme/spacing';
 
@@ -14,7 +13,9 @@ import { createBarberBlock } from '../actions';
 import { parseBlockForm, type BlockFormErrors, type BlockFormValues } from '../barber-domain';
 import { getBarberErrorMessage } from '../errors';
 import { useBarberProfileResource } from '../hooks/use-barber-profile-resource';
+import { getBarbershopContextName } from '../queries';
 import { BarberFormPage } from './barber-form-page';
+import { BarberScreenSkeleton } from './barber-screen-skeleton';
 
 const EMPTY: BlockFormValues = {
   startDate: '',
@@ -36,17 +37,30 @@ export function BarberBlockEditorScreen({
   const [errors, setErrors] = useState<BlockFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
-  const load = useCallback(() => Promise.resolve(true), []);
+  const isSubmittingRef = useRef(false);
+  const load = useCallback(
+    () =>
+      barbershopId ? getBarbershopContextName(barbershopId) : Promise.resolve<string | null>(null),
+    [barbershopId],
+  );
   const resource = useBarberProfileResource(barbershopId, barberId, load, 'blocks');
   const update = (field: keyof BlockFormValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
   };
   const submit = async () => {
-    if (!barbershopId || !barberId || !user || !resource.access.canManageBlocks) return;
+    if (
+      !barbershopId ||
+      !barberId ||
+      !user ||
+      !resource.access.canManageBlocks ||
+      isSubmittingRef.current
+    )
+      return;
     const parsed = parseBlockForm(values);
     setErrors(parsed.errors);
     if (!parsed.values) return;
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     setMutationError(null);
     try {
@@ -55,15 +69,11 @@ export function BarberBlockEditorScreen({
     } catch (mutation) {
       setMutationError(getBarberErrorMessage(mutation, 'blocks'));
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
-  if (resource.isLoading)
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Preparando bloqueo…</ThemedText>
-      </ThemedView>
-    );
+  if (resource.isLoading) return <BarberScreenSkeleton variant="form" />;
   if (!resource.access.canManageBlocks)
     return (
       <ThemedView style={styles.centered}>
@@ -77,8 +87,9 @@ export function BarberBlockEditorScreen({
     );
   return (
     <BarberFormPage
+      barbershopName={resource.data}
       description="Las fechas y horas se interpretan en horario de Lima."
-      title="Nuevo bloqueo"
+      title={resource.isOwnProfile ? undefined : 'Nuevo bloqueo'}
     >
       {mutationError ? <StatusMessage message={mutationError} /> : null}
       <View style={styles.form}>

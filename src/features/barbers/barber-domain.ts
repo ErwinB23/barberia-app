@@ -159,6 +159,37 @@ export function sortTimeIntervals<T extends TimeInterval>(intervals: readonly T[
   );
 }
 
+export function buildBarberScheduleDays<
+  TSchedule extends TimeInterval & { weekday: Weekday },
+  TOpeningHour extends TimeInterval & { weekday: Weekday },
+>(schedules: readonly TSchedule[], openingHours: readonly TOpeningHour[]) {
+  return WEEKDAYS_MONDAY_FIRST.map((weekday) => ({
+    weekday,
+    name: getWeekdayName(weekday),
+    schedules: sortTimeIntervals(schedules.filter((item) => item.weekday === weekday)),
+    hours: sortTimeIntervals(openingHours.filter((item) => item.weekday === weekday)),
+  }));
+}
+
+export function getBarberWorkspaceRoutes(barbershopId: string, barberId: string) {
+  const shop = encodeURIComponent(barbershopId);
+  const barber = encodeURIComponent(barberId);
+  const base = `/barbershops/${shop}/barbers/${barber}`;
+
+  return {
+    clientHome: '/',
+    professionalHome: `${base}/home`,
+    workspace: base,
+    profile: `${base}/edit`,
+    services: `${base}/services`,
+    schedule: `${base}/schedule`,
+    blocks: `${base}/blocks`,
+    newBlock: `${base}/blocks/new`,
+    agenda: `${base}/appointments`,
+    administration: `/barbershops/${shop}`,
+  } as const;
+}
+
 export function isScheduleWithinBarbershopHours(
   candidate: Pick<TimeInterval, 'startTime' | 'endTime'>,
   openingHours: readonly Pick<TimeInterval, 'startTime' | 'endTime'>[],

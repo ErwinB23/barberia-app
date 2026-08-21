@@ -82,7 +82,7 @@ export function buildProfileSpaces(sources: readonly ProfileSpaceSource[]): Prof
         kind: 'barber',
         title: 'Mi espacio de barbero',
         description: source.barbershopName,
-        href: `/barbershops/${source.barbershopId}/barbers/${source.ownBarberProfile.barberId}`,
+        href: `/barbershops/${source.barbershopId}/barbers/${source.ownBarberProfile.barberId}/home`,
       },
     ];
   });

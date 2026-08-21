@@ -14,6 +14,7 @@ export default function BarbersLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Barberos' }} />
+      <Stack.Screen name="[barberId]/home" options={{ headerShown: false }} />
       <Stack.Screen name="[barberId]/index" options={{ title: 'Perfil del barbero' }} />
       <Stack.Screen name="[barberId]/edit" options={{ title: 'Editar perfil público' }} />
       <Stack.Screen name="[barberId]/services" options={{ title: 'Servicios asignados' }} />

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -16,7 +16,9 @@ import { deactivateBarber } from '../actions';
 import { isSafeRemoteImageUrl } from '../barber-domain';
 import { getBarberErrorMessage } from '../errors';
 import { useBarberProfileResource } from '../hooks/use-barber-profile-resource';
-import { getBarber } from '../queries';
+import { getBarber, getBarbershopContextName } from '../queries';
+import { BarberScreenSkeleton } from './barber-screen-skeleton';
+import { BarberWorkspaceScreen } from './barber-workspace-screen';
 
 export function BarberDetailScreen({
   barbershopId,
@@ -27,22 +29,26 @@ export function BarberDetailScreen({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [isDeactivating, setIsDeactivating] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
-  const loadBarber = useCallback(
-    () => (barbershopId && barberId ? getBarber(barbershopId, barberId) : Promise.resolve(null)),
-    [barberId, barbershopId],
+  const isDeactivatingRef = useRef(false);
+  const loadBarber = useCallback(async () => {
+    if (!barbershopId || !barberId) return null;
+    const [barber, barbershopName] = await Promise.all([
+      getBarber(barbershopId, barberId),
+      getBarbershopContextName(barbershopId),
+    ]);
+    return barber ? { barber, barbershopName } : null;
+  }, [barberId, barbershopId]);
+  const { data, role, isOwnProfile, access, isLoading, error, reload } = useBarberProfileResource(
+    barbershopId,
+    barberId,
+    loadBarber,
   );
-  const {
-    data: barber,
-    role,
-    isOwnProfile,
-    access,
-    isLoading,
-    error,
-    reload,
-  } = useBarberProfileResource(barbershopId, barberId, loadBarber);
+  const barber = data?.barber ?? null;
   const deactivate = async () => {
-    if (!barber || !access.canDeactivate) return;
+    if (!barber || !access.canDeactivate || isDeactivatingRef.current) return;
+    isDeactivatingRef.current = true;
     setIsDeactivating(true);
     setMutationError(null);
     try {
@@ -56,15 +62,20 @@ export function BarberDetailScreen({
     } catch (mutation) {
       setMutationError(getBarberErrorMessage(mutation, 'barbers'));
     } finally {
+      isDeactivatingRef.current = false;
       setIsDeactivating(false);
     }
   };
-  if (isLoading)
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Cargando perfil…</ThemedText>
-      </ThemedView>
-    );
+  const refresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await reload();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  if (isLoading) return <BarberScreenSkeleton variant="workspace" />;
   if (!barber || !barbershopId)
     return (
       <ThemedView style={styles.centered}>
@@ -74,6 +85,25 @@ export function BarberDetailScreen({
         <ActionButton label="Reintentar" onPress={() => void reload()} variant="secondary" />
       </ThemedView>
     );
+
+  if (isOwnProfile) {
+    return (
+      <BarberWorkspaceScreen
+        barber={barber}
+        barbershopName={data?.barbershopName ?? null}
+        confirmingDeactivation={confirming}
+        error={mutationError ?? error}
+        isDeactivating={isDeactivating}
+        isRefreshing={isRefreshing}
+        onCancelDeactivation={() => setConfirming(false)}
+        onConfirmDeactivation={() => void deactivate()}
+        onRefresh={() => void refresh()}
+        onRequestDeactivation={() => setConfirming(true)}
+        role={role}
+      />
+    );
+  }
+
   return (
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">

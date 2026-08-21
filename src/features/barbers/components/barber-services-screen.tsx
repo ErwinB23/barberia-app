@@ -1,7 +1,10 @@
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { router, type Href } from 'expo-router';
 
+import { formatPen } from '@/features/booking';
 import { ActionButton } from '@/shared/components/ui/action-button';
+import { AppIcon } from '@/shared/components/ui/app-icon';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
@@ -12,11 +15,69 @@ import { Spacing } from '@/theme/spacing';
 import { Layout, Radius, TypeScale } from '@/theme/tokens';
 
 import { assignBarberService, unassignBarberService } from '../actions';
-import type { BarberOperationalAccess } from '../barber-domain';
+import { getBarberWorkspaceRoutes, type BarberOperationalAccess } from '../barber-domain';
 import { getBarberErrorMessage } from '../errors';
 import { useBarberProfileResource } from '../hooks/use-barber-profile-resource';
-import { getAssignedBarberServices, getBarberServiceOptions } from '../queries';
+import {
+  getAssignedBarberServices,
+  getBarberServiceOptions,
+  getBarbershopContextName,
+} from '../queries';
 import type { BarberServiceOption } from '../types';
+import { BarberContextBanner } from './barber-context-banner';
+import { BarberScreenSkeleton } from './barber-screen-skeleton';
+
+function AssignedServiceCard({ service }: { service: BarberServiceOption }) {
+  const theme = useTheme();
+
+  return (
+    <SurfaceCard style={styles.assignedCard}>
+      <View style={styles.assignedHeader}>
+        <View style={[styles.assignedIcon, { backgroundColor: theme.surfaceMuted }]}>
+          <AppIcon
+            color={theme.primary}
+            name={{ ios: 'scissors', android: 'content_cut', web: 'content_cut' }}
+            size={20}
+          />
+        </View>
+        <View style={styles.optionCopy}>
+          <View style={styles.assignedNameRow}>
+            <ThemedText selectable style={styles.optionName}>
+              {service.name}
+            </ThemedText>
+            <View
+              style={[
+                styles.serviceStatus,
+                { backgroundColor: service.isActive ? theme.successSurface : theme.surfaceMuted },
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.serviceStatusLabel,
+                  { color: service.isActive ? theme.success : theme.textSecondary },
+                ]}
+              >
+                {service.isActive ? 'Activo' : 'Inactivo'}
+              </ThemedText>
+            </View>
+          </View>
+          <View style={styles.assignedMetaRow}>
+            <ThemedText style={styles.assignedMeta} themeColor="textSecondary">
+              {service.durationMinutes} min
+            </ThemedText>
+            <ThemedText
+              selectable
+              style={[styles.assignedMeta, styles.assignedPrice]}
+              themeColor="textSecondary"
+            >
+              {formatPen(service.price)}
+            </ThemedText>
+          </View>
+        </View>
+      </View>
+    </SurfaceCard>
+  );
+}
 
 export function BarberServicesScreen({
   barbershopId,
@@ -32,19 +93,26 @@ export function BarberServicesScreen({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const load = useCallback(
-    (access: BarberOperationalAccess) => {
-      if (!barbershopId || !barberId) return Promise.resolve([]);
-      return access.canManageServices
-        ? getBarberServiceOptions(barbershopId, barberId)
-        : getAssignedBarberServices(barbershopId, barberId);
+    async (access: BarberOperationalAccess) => {
+      if (!barbershopId || !barberId) return { services: [], barbershopName: null };
+      const [services, barbershopName] = await Promise.all([
+        access.canManageServices
+          ? getBarberServiceOptions(barbershopId, barberId)
+          : getAssignedBarberServices(barbershopId, barberId),
+        getBarbershopContextName(barbershopId),
+      ]);
+      return { services, barbershopName };
     },
     [barberId, barbershopId],
   );
   const resource = useBarberProfileResource(barbershopId, barberId, load, 'services');
   const refresh = async () => {
     setIsRefreshing(true);
-    await resource.reload();
-    setIsRefreshing(false);
+    try {
+      await resource.reload();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
   const change = async (service: BarberServiceOption, assign: boolean) => {
     if (!barbershopId || !barberId || !resource.access.canManageServices) return;
@@ -65,12 +133,7 @@ export function BarberServicesScreen({
       setChangingId(null);
     }
   };
-  if (resource.isLoading)
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Cargando servicios…</ThemedText>
-      </ThemedView>
-    );
+  if (resource.isLoading) return <BarberScreenSkeleton />;
   if (!resource.access.canViewServices)
     return (
       <ThemedView style={styles.centered}>
@@ -82,31 +145,47 @@ export function BarberServicesScreen({
         />
       </ThemedView>
     );
+  const services = resource.data?.services ?? [];
+  const routes = barbershopId && barberId ? getBarberWorkspaceRoutes(barbershopId, barberId) : null;
+
   return (
     <ThemedView style={styles.screen}>
       <FlatList
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
-        data={resource.data ?? []}
+        data={services}
         keyExtractor={(item) => item.id}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListHeaderComponent={
           <View style={styles.header}>
-            <ScreenHeading
-              description={
-                resource.access.canManageServices
-                  ? 'Asigna únicamente servicios del catálogo de esta barbería.'
-                  : 'Consulta los servicios que la administración asignó a tu perfil.'
-              }
-              eyebrow="Capacidades"
-              title={resource.isOwnProfile ? 'Mis servicios' : 'Servicios del barbero'}
-            />
-            <ActionButton
-              disabled={isRefreshing}
-              label="Actualizar servicios"
-              onPress={() => void refresh()}
-              variant="secondary"
-            />
+            {resource.isOwnProfile ? (
+              <>
+                <BarberContextBanner
+                  barbershopName={resource.data?.barbershopName ?? null}
+                  onOpenWorkspace={
+                    routes ? () => router.replace(routes.workspace as Href) : undefined
+                  }
+                />
+                <ThemedText style={styles.intro} themeColor="textSecondary">
+                  Estos son los servicios que un administrador asignó a tu perfil profesional.
+                </ThemedText>
+              </>
+            ) : (
+              <ScreenHeading
+                description="Asigna únicamente servicios del catálogo de esta barbería."
+                eyebrow="Capacidades"
+                title="Servicios del barbero"
+              />
+            )}
+            <View style={resource.isOwnProfile ? styles.refreshAction : null}>
+              <ActionButton
+                disabled={isRefreshing}
+                label="Actualizar servicios"
+                onPress={() => void refresh()}
+                size={resource.isOwnProfile ? 'compact' : 'default'}
+                variant="secondary"
+              />
+            </View>
             {feedback ? <StatusMessage message={feedback} tone="success" /> : null}
             {resource.error || mutationError ? (
               <StatusMessage message={mutationError ?? resource.error!} />
@@ -140,12 +219,12 @@ export function BarberServicesScreen({
             <ThemedText style={styles.title}>
               {resource.access.canManageServices
                 ? 'No hay servicios en el catálogo'
-                : 'No tienes servicios asignados'}
+                : 'No tienes servicios asignados todavía.'}
             </ThemedText>
             <ThemedText themeColor="textSecondary">
               {resource.access.canManageServices
                 ? 'Crea servicios antes de configurar las capacidades del barbero.'
-                : 'La administración de la barbería debe asignarlos a tu perfil.'}
+                : 'Un administrador de la barbería debe asignarlos.'}
             </ThemedText>
           </SurfaceCard>
         }
@@ -158,6 +237,10 @@ export function BarberServicesScreen({
           />
         }
         renderItem={({ item }) => {
+          if (!resource.access.canManageServices) {
+            return <AssignedServiceCard service={item} />;
+          }
+
           const content = (
             <>
               <View style={styles.optionCopy}>
@@ -223,6 +306,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.six,
   },
   header: { gap: Spacing.four, paddingBottom: Spacing.four },
+  intro: { maxWidth: 620, fontSize: TypeScale.label, lineHeight: 21 },
+  refreshAction: { alignItems: 'flex-start' },
   separator: { height: Spacing.three },
   option: {
     minHeight: 72,
@@ -234,8 +319,28 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     padding: Spacing.three,
   },
-  optionCopy: { flex: 1, gap: Spacing.one },
-  optionName: { fontSize: TypeScale.body, fontWeight: '700' },
+  optionCopy: { minWidth: 0, flex: 1, gap: Spacing.one },
+  optionName: { minWidth: 0, flex: 1, fontSize: TypeScale.body, fontWeight: '700' },
+  assignedCard: { padding: Spacing.three },
+  assignedHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  assignedIcon: {
+    width: 44,
+    height: 44,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.medium,
+  },
+  assignedNameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  assignedMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
+  assignedMeta: { fontSize: TypeScale.label, lineHeight: 21, fontVariant: ['tabular-nums'] },
+  assignedPrice: { fontWeight: '700' },
+  serviceStatus: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+  },
+  serviceStatusLabel: { fontSize: TypeScale.caption, fontWeight: '800' },
   badge: {
     minHeight: 36,
     justifyContent: 'center',

@@ -22,7 +22,13 @@ function normalizeTime(value: string) {
 }
 
 export function mapServices(rows: ServiceRow[]): BarberService[] {
-  return rows.map((row) => ({ id: row.id, name: row.name, isActive: row.is_active }));
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    durationMinutes: row.duration_minutes,
+    price: row.price,
+    isActive: row.is_active,
+  }));
 }
 
 export function mapBarbers(

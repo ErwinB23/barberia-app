@@ -20,6 +20,7 @@ import type {
 
 const BARBER_COLUMNS = 'id, barbershop_id, display_name, bio, photo_url, is_active';
 const ASSIGNMENT_COLUMNS = 'barber_id, service_id';
+const SERVICE_COLUMNS = 'id, barbershop_id, name, duration_minutes, price, is_active';
 const SCHEDULE_COLUMNS = 'id, barbershop_id, barber_id, weekday, start_time, end_time';
 const BLOCK_COLUMNS = 'id, barbershop_id, barber_id, starts_at, ends_at, reason';
 
@@ -46,6 +47,16 @@ export async function getOwnBarberProfile(barbershopId: string): Promise<OwnBarb
   return data ? { barberId: data.barber_id, isActive: data.is_active } : null;
 }
 
+export async function getBarbershopContextName(barbershopId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('barbershops')
+    .select('name')
+    .eq('id', barbershopId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.name ?? null;
+}
+
 export async function getBarbers(barbershopId: string): Promise<Barber[]> {
   const [barbersResult, assignmentsResult, servicesResult] = await Promise.all([
     supabase
@@ -54,10 +65,7 @@ export async function getBarbers(barbershopId: string): Promise<Barber[]> {
       .eq('barbershop_id', barbershopId)
       .order('display_name'),
     supabase.from('barber_services').select(ASSIGNMENT_COLUMNS).eq('barbershop_id', barbershopId),
-    supabase
-      .from('services')
-      .select('id, barbershop_id, name, is_active')
-      .eq('barbershop_id', barbershopId),
+    supabase.from('services').select(SERVICE_COLUMNS).eq('barbershop_id', barbershopId),
   ]);
   if (barbersResult.error) throw barbersResult.error;
   if (assignmentsResult.error) throw assignmentsResult.error;
@@ -90,7 +98,7 @@ export async function getBarber(barbershopId: string, barberId: string): Promise
 
   const { data: services, error: servicesError } = await supabase
     .from('services')
-    .select('id, barbershop_id, name, is_active')
+    .select(SERVICE_COLUMNS)
     .eq('barbershop_id', barbershopId)
     .in('id', serviceIds);
   if (servicesError) throw servicesError;
@@ -105,7 +113,7 @@ export async function getBarberServiceOptions(
   const [servicesResult, assignmentsResult] = await Promise.all([
     supabase
       .from('services')
-      .select('id, barbershop_id, name, is_active')
+      .select(SERVICE_COLUMNS)
       .eq('barbershop_id', barbershopId)
       .order('name'),
     supabase
@@ -145,7 +153,7 @@ export async function getAssignedBarberServices(
 
   const { data: services, error: servicesError } = await supabase
     .from('services')
-    .select('id, barbershop_id, name, is_active')
+    .select(SERVICE_COLUMNS)
     .eq('barbershop_id', barbershopId)
     .in('id', serviceIds)
     .order('name');

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/features/auth/hooks/use-auth';
@@ -30,45 +30,10 @@ import {
 import { getReservationErrorMessage } from '../errors';
 import { getOperationalAppointment } from '../queries';
 import { getPaymentMethodLabel, getPaymentStatusLabel } from '../reservation-domain';
+import { APPOINTMENT_ACTION_COPY, type AppointmentAction } from './appointment-action-copy';
 import { PaymentStatusBadge, ReservationStatusBadge } from './appointment-status-badge';
-
-type AppointmentAction = 'start' | 'complete' | 'no_show' | 'cash' | 'yape' | 'refund';
-
-const ACTION_COPY: Record<
-  AppointmentAction,
-  { label: string; confirmation: string; success: string }
-> = {
-  start: {
-    label: 'Iniciar atención',
-    confirmation: 'La cita pasará a En atención.',
-    success: 'La atención fue iniciada.',
-  },
-  complete: {
-    label: 'Completar atención',
-    confirmation: 'La cita pasará a Completada y no tendrá otra transición operativa.',
-    success: 'La cita fue completada.',
-  },
-  no_show: {
-    label: 'Marcar No asistió',
-    confirmation: 'Confirma que terminó la tolerancia y el cliente no se presentó.',
-    success: 'La cita fue marcada como No asistió.',
-  },
-  cash: {
-    label: 'Confirmar pago en efectivo',
-    confirmation: 'Confirma que recibiste el importe completo en efectivo.',
-    success: 'El pago en efectivo fue confirmado.',
-  },
-  yape: {
-    label: 'Confirmar pago Yape',
-    confirmation: 'Confirma que el pago Yape fue verificado.',
-    success: 'El pago Yape fue confirmado.',
-  },
-  refund: {
-    label: 'Registrar reembolso',
-    confirmation: 'Confirma que el reembolso manual ya fue realizado fuera de la aplicación.',
-    success: 'El reembolso fue registrado.',
-  },
-};
+import { BarberAppointmentDetailSkeleton } from './barber-appointment-skeletons';
+import { BarberOperationalAppointmentDetail } from './barber-operational-appointment-detail';
 
 function DetailLine({ label, value }: { label: string; value: string }) {
   return (
@@ -152,8 +117,10 @@ export function OperationalAppointmentDetailScreen({
   const [confirmation, setConfirmation] = useState<AppointmentAction | null>(null);
   const [showYapeForm, setShowYapeForm] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const isMutatingRef = useRef(false);
   const load = useCallback(
     () =>
       user && barbershopId && reservationId
@@ -168,8 +135,18 @@ export function OperationalAppointmentDetailScreen({
   );
   const { data, isLoading, error, reload } = useFocusedResource(load);
 
+  const refresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await reload();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const runAction = async (action: AppointmentAction, yapeValues?: YapeConfirmationFormValues) => {
-    if (!data) return;
+    if (!data || isMutatingRef.current) return;
+    isMutatingRef.current = true;
     setIsMutating(true);
     setMutationError(null);
     setFeedback(null);
@@ -186,16 +163,19 @@ export function OperationalAppointmentDetailScreen({
 
       setConfirmation(null);
       setShowYapeForm(false);
-      setFeedback(ACTION_COPY[action].success);
+      setFeedback(APPOINTMENT_ACTION_COPY[action].success);
       await reload();
     } catch (actionError) {
       setMutationError(getReservationErrorMessage(actionError));
     } finally {
+      isMutatingRef.current = false;
       setIsMutating(false);
     }
   };
 
   if (isLoading && !data) {
+    if (barberId) return <BarberAppointmentDetailSkeleton />;
+
     return (
       <ThemedView style={styles.centered}>
         <ThemedText themeColor="textSecondary">Cargando cita…</ThemedText>
@@ -221,6 +201,24 @@ export function OperationalAppointmentDetailScreen({
     paymentStatus: appointment.payment?.status ?? null,
     isRefundEligible: appointment.isRefundEligible,
   });
+
+  if (role === 'barber') {
+    return (
+      <BarberOperationalAppointmentDetail
+        actions={actions}
+        appointment={appointment}
+        confirmation={confirmation}
+        error={mutationError ?? error}
+        feedback={feedback}
+        isMutating={isMutating}
+        isRefreshing={isRefreshing}
+        onCancelConfirmation={() => setConfirmation(null)}
+        onConfirmAction={(action) => void runAction(action)}
+        onRefresh={() => void refresh()}
+        onRequestAction={setConfirmation}
+      />
+    );
+  }
 
   return (
     <ThemedView style={styles.screen}>
@@ -290,10 +288,12 @@ export function OperationalAppointmentDetailScreen({
 
         {confirmation ? (
           <SurfaceCard style={styles.warningCard}>
-            <ThemedText style={styles.sectionTitle}>{ACTION_COPY[confirmation].label}</ThemedText>
+            <ThemedText style={styles.sectionTitle}>
+              {APPOINTMENT_ACTION_COPY[confirmation].label}
+            </ThemedText>
             <ThemedText themeColor="textSecondary">
-              {ACTION_COPY[confirmation].confirmation} El backend validará nuevamente el estado y
-              tus permisos.
+              {APPOINTMENT_ACTION_COPY[confirmation].confirmation} El backend validará nuevamente el
+              estado y tus permisos.
             </ThemedText>
             <ActionButton
               isLoading={isMutating}

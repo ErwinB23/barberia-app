@@ -72,7 +72,7 @@ test('muestra el espacio operativo del barbero activo sin darle acceso administr
         kind: 'barber',
         title: 'Mi espacio de barbero',
         description: 'Barbería Central',
-        href: '/barbershops/barbershop-a/barbers/barber-a',
+        href: '/barbershops/barbershop-a/barbers/barber-a/home',
       },
     ],
   );

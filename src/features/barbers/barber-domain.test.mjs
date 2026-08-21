@@ -14,6 +14,7 @@ import {
   parseBarberScheduleForm,
   parseBlockForm,
 } from './barber-domain.ts';
+import { getBarberErrorMessage } from './errors.ts';
 
 test('valida y normaliza los campos editables del perfil público', () => {
   assert.equal(typeof barberDomain.parseBarberProfileForm, 'function');
@@ -203,4 +204,66 @@ test('conserva la gestión completa del administrador dentro de su barbería', (
     canManageBlocks: true,
     canDeactivate: true,
   });
+});
+
+test('construye navegación profesional aislada por barbería y perfil', () => {
+  assert.equal(typeof barberDomain.getBarberWorkspaceRoutes, 'function');
+  if (typeof barberDomain.getBarberWorkspaceRoutes !== 'function') return;
+
+  const first = barberDomain.getBarberWorkspaceRoutes('shop-a', 'barber-a');
+  const second = barberDomain.getBarberWorkspaceRoutes('shop-b', 'barber-a');
+
+  assert.deepEqual(first, {
+    clientHome: '/',
+    professionalHome: '/barbershops/shop-a/barbers/barber-a/home',
+    workspace: '/barbershops/shop-a/barbers/barber-a',
+    profile: '/barbershops/shop-a/barbers/barber-a/edit',
+    services: '/barbershops/shop-a/barbers/barber-a/services',
+    schedule: '/barbershops/shop-a/barbers/barber-a/schedule',
+    blocks: '/barbershops/shop-a/barbers/barber-a/blocks',
+    newBlock: '/barbershops/shop-a/barbers/barber-a/blocks/new',
+    agenda: '/barbershops/shop-a/barbers/barber-a/appointments',
+    administration: '/barbershops/shop-a',
+  });
+  assert.notEqual(first.workspace, second.workspace);
+  assert.equal(second.workspace.includes('shop-a'), false);
+});
+
+test('organiza los siete días y conserva múltiples intervalos ordenados', () => {
+  assert.equal(typeof barberDomain.buildBarberScheduleDays, 'function');
+  if (typeof barberDomain.buildBarberScheduleDays !== 'function') return;
+
+  const days = barberDomain.buildBarberScheduleDays(
+    [
+      { id: 'afternoon', weekday: 1, startTime: '14:30', endTime: '19:00' },
+      { id: 'morning', weekday: 1, startTime: '09:00', endTime: '13:00' },
+    ],
+    [{ id: 'opening', weekday: 1, startTime: '08:00', endTime: '20:00' }],
+  );
+
+  assert.equal(days.length, 7);
+  assert.deepEqual(
+    days.map(({ weekday, name }) => ({ weekday, name })),
+    [
+      { weekday: 1, name: 'Lunes' },
+      { weekday: 2, name: 'Martes' },
+      { weekday: 3, name: 'Miércoles' },
+      { weekday: 4, name: 'Jueves' },
+      { weekday: 5, name: 'Viernes' },
+      { weekday: 6, name: 'Sábado' },
+      { weekday: 0, name: 'Domingo' },
+    ],
+  );
+  assert.deepEqual(
+    days[0].schedules.map(({ id }) => id),
+    ['morning', 'afternoon'],
+  );
+  assert.deepEqual(days[1].schedules, []);
+});
+
+test('traduce el conflicto entre bloqueo y cita sin filtrar el error de base de datos', () => {
+  assert.equal(
+    getBarberErrorMessage({ code: '23P01', message: 'exclusion constraint details' }, 'blocks'),
+    'No se puede crear el bloqueo porque se superpone con una reserva activa.',
+  );
 });

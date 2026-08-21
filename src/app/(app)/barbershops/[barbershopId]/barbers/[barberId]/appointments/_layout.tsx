@@ -15,7 +15,7 @@ export default function BarberAppointmentsLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Mi agenda' }} />
-      <Stack.Screen name="[reservationId]" options={{ title: 'Mi cita asignada' }} />
+      <Stack.Screen name="[reservationId]" options={{ title: 'Detalle de cita' }} />
     </Stack>
   );
 }

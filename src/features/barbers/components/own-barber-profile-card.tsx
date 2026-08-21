@@ -54,7 +54,9 @@ export function OwnBarberProfileCard({ barbershopId }: { barbershopId: string })
           </ThemedText>
           <ActionButton
             label="Entrar a mi espacio"
-            onPress={() => router.push(`/barbershops/${barbershopId}/barbers/${profile.barberId}`)}
+            onPress={() =>
+              router.push(`/barbershops/${barbershopId}/barbers/${profile.barberId}/home`)
+            }
             variant="secondary"
           />
         </>

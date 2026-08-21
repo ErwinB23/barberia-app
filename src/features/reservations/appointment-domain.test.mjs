@@ -360,3 +360,96 @@ test('traduce rechazos operativos sin exponer detalles internos', () => {
     'La política snapshot de esta reserva no permite un reembolso.',
   );
 });
+
+test('presenta un estado vacío específico para cada período de la agenda', () => {
+  assert.equal(typeof domain.getAgendaEmptyStateCopy, 'function');
+  if (typeof domain.getAgendaEmptyStateCopy !== 'function') return;
+
+  assert.deepEqual(domain.getAgendaEmptyStateCopy('today'), {
+    title: 'Sin citas para hoy',
+    description: 'Tu jornada está libre por ahora.',
+  });
+  assert.deepEqual(domain.getAgendaEmptyStateCopy('upcoming'), {
+    title: 'No tienes próximas citas programadas',
+    description: 'Las nuevas reservas aparecerán aquí.',
+  });
+  assert.deepEqual(domain.getAgendaEmptyStateCopy('history'), {
+    title: 'Aún no tienes citas anteriores',
+    description: 'Tu historial se mostrará aquí después de cada jornada.',
+  });
+  assert.deepEqual(domain.getAgendaEmptyStateCopy('today', true), {
+    title: 'Sin citas con este estado',
+    description: 'Prueba otro filtro para consultar tu agenda.',
+  });
+});
+
+test('prioriza la acción de atención y separa pago y no asistencia', () => {
+  assert.equal(typeof domain.getBarberAppointmentControls, 'function');
+  if (typeof domain.getBarberAppointmentControls !== 'function') return;
+
+  const beforeTolerance = new Date('2026-08-12T15:09:59.000Z');
+  const confirmedCash = domain.getOperationalActions(
+    {
+      actorRole: 'barber',
+      reservationStatus: 'confirmed',
+      startsAt: '2026-08-12T15:00:00.000Z',
+      paymentMethod: 'cash',
+      paymentStatus: 'pending',
+      isRefundEligible: false,
+    },
+    beforeTolerance,
+  );
+
+  assert.deepEqual(domain.getBarberAppointmentControls(confirmedCash, 'cash', 'pending'), {
+    primaryAction: 'start',
+    canMarkNoShow: false,
+    canConfirmCash: true,
+    paymentGuidance: null,
+  });
+});
+
+test('Yape pendiente informa al barbero sin ofrecer una confirmación inválida', () => {
+  assert.equal(typeof domain.getBarberAppointmentControls, 'function');
+  if (typeof domain.getBarberAppointmentControls !== 'function') return;
+
+  const actions = domain.getOperationalActions(
+    {
+      actorRole: 'barber',
+      reservationStatus: 'confirmed',
+      startsAt: '2026-08-12T15:00:00.000Z',
+      paymentMethod: 'yape',
+      paymentStatus: 'pending',
+      isRefundEligible: false,
+    },
+    new Date('2026-08-12T15:10:00.000Z'),
+  );
+
+  assert.deepEqual(domain.getBarberAppointmentControls(actions, 'yape', 'pending'), {
+    primaryAction: 'start',
+    canMarkNoShow: true,
+    canConfirmCash: false,
+    paymentGuidance: 'Confirmación pendiente del administrador.',
+  });
+});
+
+test('la jerarquía visual sigue el estado actualizado de la cita', () => {
+  assert.equal(typeof domain.getBarberAppointmentControls, 'function');
+  if (typeof domain.getBarberAppointmentControls !== 'function') return;
+
+  const base = {
+    actorRole: 'barber',
+    startsAt: '2026-08-12T15:00:00.000Z',
+    paymentMethod: null,
+    paymentStatus: null,
+    isRefundEligible: false,
+  };
+
+  const inProgress = domain.getOperationalActions({ ...base, reservationStatus: 'in_progress' });
+  const completed = domain.getOperationalActions({ ...base, reservationStatus: 'completed' });
+
+  assert.equal(
+    domain.getBarberAppointmentControls(inProgress, null, null).primaryAction,
+    'complete',
+  );
+  assert.equal(domain.getBarberAppointmentControls(completed, null, null).primaryAction, null);
+});
