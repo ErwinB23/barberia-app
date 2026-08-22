@@ -1,7 +1,11 @@
 import { Image } from 'expo-image';
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
 import { ActionButton } from '@/shared/components/ui/action-button';
+import { AppIcon } from '@/shared/components/ui/app-icon';
+import { getPressedScaleStyle } from '@/shared/components/ui/press-feedback';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
 import { ThemedText } from '@/shared/components/ui/themed-text';
 import { useTheme } from '@/theme/hooks/use-theme';
@@ -21,11 +25,25 @@ type StyleCardProps = {
 
 export function StyleCard({ style, isChangingStatus, onEdit, onToggleStatus }: StyleCardProps) {
   const theme = useTheme();
+  const reduceMotion = useReducedMotion();
+  const [isFocused, setIsFocused] = useState(false);
   const imageUrl = style.imageUrl && isSafeImageUrl(style.imageUrl) ? style.imageUrl : null;
 
   return (
     <SurfaceCard style={styles.card}>
-      <View style={styles.content}>
+      <Pressable
+        accessibilityHint="Abre la edición de este estilo"
+        accessibilityLabel={`${style.name}, ${style.isActive ? 'activo' : 'inactivo'}`}
+        accessibilityRole="button"
+        onBlur={() => setIsFocused(false)}
+        onFocus={() => setIsFocused(true)}
+        onPress={onEdit}
+        style={({ pressed }) => [
+          styles.openArea,
+          isFocused ? { boxShadow: `inset 0 0 0 2px ${theme.focus}` } : null,
+          getPressedScaleStyle(pressed, reduceMotion, 0.992),
+        ]}
+      >
         {imageUrl ? (
           <Image
             accessibilityLabel={`Referencia visual de ${style.name}`}
@@ -37,33 +55,36 @@ export function StyleCard({ style, isChangingStatus, onEdit, onToggleStatus }: S
           <View
             style={[styles.image, styles.imagePlaceholder, { backgroundColor: theme.surfaceMuted }]}
           >
-            <ThemedText style={styles.placeholderLabel} themeColor="textSecondary">
-              Sin imagen
-            </ThemedText>
+            <AppIcon
+              color={theme.textSecondary}
+              name={{ ios: 'photo', android: 'image', web: 'image' }}
+              size={24}
+            />
           </View>
         )}
         <View style={styles.copy}>
           <View style={styles.heading}>
-            <ThemedText style={styles.title}>{style.name}</ThemedText>
+            <ThemedText numberOfLines={2} style={styles.title}>
+              {style.name}
+            </ThemedText>
             <CatalogStatusBadge isActive={style.isActive} />
           </View>
-          {style.description ? (
-            <ThemedText style={styles.description} themeColor="textSecondary">
-              {style.description}
-            </ThemedText>
-          ) : (
-            <ThemedText style={styles.description} themeColor="textSecondary">
-              Sin descripción.
-            </ThemedText>
-          )}
+          <ThemedText numberOfLines={2} style={styles.description} themeColor="textSecondary">
+            {style.description ?? 'Sin descripción.'}
+          </ThemedText>
         </View>
-      </View>
-      <View style={styles.actions}>
-        <ActionButton label="Editar estilo" onPress={onEdit} variant="secondary" />
+        <AppIcon
+          color={theme.textSecondary}
+          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+          size={20}
+        />
+      </Pressable>
+      <View style={[styles.statusAction, { borderTopColor: theme.border }]}>
         <ActionButton
           isLoading={isChangingStatus}
-          label={style.isActive ? 'Desactivar' : 'Activar'}
+          label={style.isActive ? 'Desactivar estilo' : 'Activar estilo'}
           onPress={onToggleStatus}
+          size="compact"
           variant={style.isActive ? 'danger' : 'secondary'}
         />
       </View>
@@ -72,46 +93,23 @@ export function StyleCard({ style, isChangingStatus, onEdit, onToggleStatus }: S
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: Spacing.three,
-    padding: Spacing.four,
-  },
-  content: {
+  card: { overflow: 'hidden' },
+  openArea: {
+    minHeight: 112,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.three,
-  },
-  image: {
-    width: 96,
-    height: 96,
-    borderRadius: Radius.medium,
-  },
-  imagePlaceholder: {
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.two,
+    gap: Spacing.three,
+    padding: Spacing.three,
   },
-  placeholderLabel: {
-    textAlign: 'center',
-    fontSize: TypeScale.caption,
-    fontWeight: '700',
-  },
-  copy: {
-    flex: 1,
-    gap: Spacing.two,
-  },
-  heading: {
-    gap: Spacing.two,
-  },
-  title: {
-    fontSize: TypeScale.title,
-    fontWeight: '700',
-  },
-  description: {
-    fontSize: TypeScale.label,
-    lineHeight: 21,
-  },
-  actions: {
-    gap: Spacing.two,
+  image: { width: 80, height: 80, borderRadius: Radius.medium },
+  imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  copy: { minWidth: 0, flex: 1, gap: Spacing.two },
+  heading: { gap: Spacing.two },
+  title: { fontSize: TypeScale.body, fontWeight: '700' },
+  description: { fontSize: TypeScale.label, lineHeight: 21 },
+  statusAction: {
+    alignItems: 'flex-start',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    padding: Spacing.three,
   },
 });

@@ -170,6 +170,84 @@ test('filtra agenda por período, barbero, estado y pagos pendientes', () => {
   );
 });
 
+test('filtra por estado y método de pago después de definir el período', () => {
+  assert.equal(typeof domain.filterAgendaAppointments, 'function');
+  if (typeof domain.filterAgendaAppointments !== 'function') return;
+
+  const appointments = [
+    {
+      id: 'today-yape-pending',
+      barberId: 'barber-a',
+      startsAt: '2026-08-12T16:00:00.000Z',
+      status: 'confirmed',
+      payment: { method: 'yape', status: 'pending' },
+    },
+    {
+      id: 'today-cash-paid',
+      barberId: 'barber-a',
+      startsAt: '2026-08-12T17:00:00.000Z',
+      status: 'completed',
+      payment: { method: 'cash', status: 'paid' },
+    },
+    {
+      id: 'history-yape-pending',
+      barberId: 'barber-a',
+      startsAt: '2026-08-11T17:00:00.000Z',
+      status: 'cancelled',
+      payment: { method: 'yape', status: 'pending' },
+    },
+  ];
+  const now = new Date('2026-08-12T15:00:00.000Z');
+
+  assert.deepEqual(
+    domain
+      .filterAgendaAppointments(
+        appointments,
+        {
+          period: 'today',
+          barberId: null,
+          status: null,
+          paymentStatus: 'pending',
+          paymentMethod: 'yape',
+        },
+        now,
+      )
+      .map((appointment) => appointment.id),
+    ['today-yape-pending'],
+  );
+});
+
+test('detecta y limpia todos los filtros secundarios de agenda', () => {
+  assert.equal(typeof domain.hasSecondaryAgendaFilters, 'function');
+  assert.equal(typeof domain.clearSecondaryAgendaFilters, 'function');
+  if (
+    typeof domain.hasSecondaryAgendaFilters !== 'function' ||
+    typeof domain.clearSecondaryAgendaFilters !== 'function'
+  )
+    return;
+
+  const filtered = {
+    period: 'history',
+    barberId: 'barber-a',
+    status: 'completed',
+    paymentStatus: 'paid',
+    paymentMethod: 'cash',
+  };
+
+  assert.equal(domain.hasSecondaryAgendaFilters(filtered), true);
+  assert.deepEqual(domain.clearSecondaryAgendaFilters(filtered), {
+    period: 'history',
+    barberId: null,
+    status: null,
+    paymentStatus: null,
+    paymentMethod: null,
+  });
+  assert.equal(
+    domain.hasSecondaryAgendaFilters(domain.clearSecondaryAgendaFilters(filtered)),
+    false,
+  );
+});
+
 test('define la ventana de consulta por día de Lima antes de aplicar otros filtros', () => {
   const now = new Date('2026-08-12T15:00:00.000Z');
 

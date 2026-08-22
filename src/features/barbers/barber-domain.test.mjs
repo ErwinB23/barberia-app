@@ -267,3 +267,12 @@ test('traduce el conflicto entre bloqueo y cita sin filtrar el error de base de 
     'No se puede crear el bloqueo porque se superpone con una reserva activa.',
   );
 });
+
+test('solo permite asignar servicios activos y conserva la gestión de asignaciones existentes', () => {
+  assert.equal(typeof barberDomain.canToggleBarberService, 'function');
+  if (typeof barberDomain.canToggleBarberService !== 'function') return;
+
+  assert.equal(barberDomain.canToggleBarberService({ isActive: true, isAssigned: false }), true);
+  assert.equal(barberDomain.canToggleBarberService({ isActive: false, isAssigned: false }), false);
+  assert.equal(barberDomain.canToggleBarberService({ isActive: false, isAssigned: true }), true);
+});

@@ -153,60 +153,6 @@ function OwnScheduleDayCard({
   );
 }
 
-function AdminScheduleDayCard({
-  day,
-  barberId,
-  barbershopId,
-  onDelete,
-}: {
-  day: ScheduleDay;
-  barberId: string;
-  barbershopId: string;
-  onDelete: (schedule: BarberSchedule) => void;
-}) {
-  const theme = useTheme();
-
-  return (
-    <SurfaceCard style={styles.card}>
-      <ThemedText style={styles.title}>{day.name}</ThemedText>
-      <GeneralHours hours={day.hours} />
-      {day.schedules.length > 0 ? (
-        day.schedules.map((schedule) => (
-          <View key={schedule.id} style={[styles.adminInterval, { borderTopColor: theme.border }]}>
-            <ThemedText selectable style={styles.time}>
-              {schedule.startTime} – {schedule.endTime}
-            </ThemedText>
-            <View style={styles.adminActions}>
-              <ActionButton
-                label="Editar"
-                onPress={() =>
-                  router.push(
-                    `/barbershops/${barbershopId}/barbers/${barberId}/schedule/${schedule.id}/edit`,
-                  )
-                }
-                variant="secondary"
-              />
-              <ActionButton label="Eliminar" onPress={() => onDelete(schedule)} variant="danger" />
-            </View>
-          </View>
-        ))
-      ) : (
-        <ThemedText themeColor="textSecondary">Sin atención configurada.</ThemedText>
-      )}
-      <ActionButton
-        disabled={day.hours.length === 0}
-        label="Agregar intervalo"
-        onPress={() =>
-          router.push(
-            `/barbershops/${barbershopId}/barbers/${barberId}/schedule/new?weekday=${day.weekday}`,
-          )
-        }
-        variant="secondary"
-      />
-    </SurfaceCard>
-  );
-}
-
 export function BarberScheduleScreen({
   barbershopId,
   barberId,
@@ -330,6 +276,7 @@ export function BarberScheduleScreen({
                 </>
               ) : (
                 <ScreenHeading
+                  compact
                   description="Cada intervalo debe caber completamente dentro del horario general."
                   eyebrow="Disponibilidad operativa"
                   title="Horario individual"
@@ -381,23 +328,14 @@ export function BarberScheduleScreen({
               tintColor={theme.primary}
             />
           }
-          renderItem={({ item }) =>
-            resource.isOwnProfile ? (
-              <OwnScheduleDayCard
-                barberId={barberId}
-                barbershopId={barbershopId}
-                day={item}
-                onDelete={setPending}
-              />
-            ) : (
-              <AdminScheduleDayCard
-                barberId={barberId}
-                barbershopId={barbershopId}
-                day={item}
-                onDelete={setPending}
-              />
-            )
-          }
+          renderItem={({ item }) => (
+            <OwnScheduleDayCard
+              barberId={barberId}
+              barbershopId={barbershopId}
+              day={item}
+              onDelete={setPending}
+            />
+          )}
         />
       </ThemedView>
     </>
@@ -444,7 +382,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
   },
   intervalActionLabel: { fontSize: TypeScale.caption, fontWeight: '700' },
-  adminInterval: { gap: Spacing.two, borderTopWidth: 1, paddingTop: Spacing.three },
-  adminActions: { gap: Spacing.two },
   confirm: { gap: Spacing.three, padding: Spacing.four },
 });

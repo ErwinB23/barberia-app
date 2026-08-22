@@ -3,6 +3,7 @@ import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { ActionButton } from '@/shared/components/ui/action-button';
+import { ListScreenSkeleton } from '@/shared/components/ui/list-screen-skeleton';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
@@ -72,11 +73,7 @@ export function ClosuresScreen({ barbershopId, saved }: ClosuresScreenProps) {
   };
 
   if (isLoading) {
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Cargando cierres excepcionales…</ThemedText>
-      </ThemedView>
-    );
+    return <ListScreenSkeleton />;
   }
 
   if (role !== 'administrator') {
@@ -117,6 +114,7 @@ export function ClosuresScreen({ barbershopId, saved }: ClosuresScreenProps) {
         ListHeaderComponent={
           <View style={styles.header}>
             <ScreenHeading
+              compact
               description="Gestiona períodos puntuales en los que toda la barbería permanecerá cerrada."
               eyebrow="Excepciones"
               title="Cierres excepcionales"
@@ -125,13 +123,6 @@ export function ClosuresScreen({ barbershopId, saved }: ClosuresScreenProps) {
               label="Nuevo cierre"
               onPress={() => router.push(`/barbershops/${barbershopId}/schedules/closures/new`)}
             />
-            <ActionButton
-              disabled={isRefreshing}
-              label="Actualizar cierres"
-              onPress={() => void refresh()}
-              variant="secondary"
-            />
-
             <SurfaceCard style={[styles.warningCard, { backgroundColor: theme.warningSurface }]}>
               <ThemedText style={[styles.warningTitle, { color: theme.warning }]}>
                 Antes de crear

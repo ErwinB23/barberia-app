@@ -28,12 +28,6 @@ const DATE_FORMATTER = new Intl.DateTimeFormat('es-PE', {
   dateStyle: 'full',
   timeZone: 'America/Lima',
 });
-const ADMIN_FORMATTER = new Intl.DateTimeFormat('es-PE', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  hour12: false,
-  timeZone: 'America/Lima',
-});
 const TIME_FORMATTER = new Intl.DateTimeFormat('es-PE', {
   hour: '2-digit',
   minute: '2-digit',
@@ -49,10 +43,6 @@ const DATE_KEY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
 
 function formatDate(value: string) {
   return DATE_FORMATTER.format(new Date(value));
-}
-
-function formatAdminDateTime(value: string) {
-  return ADMIN_FORMATTER.format(new Date(value));
 }
 
 function formatTime(value: string) {
@@ -218,6 +208,7 @@ export function BarberBlocksScreen({
               </>
             ) : (
               <ScreenHeading
+                compact
                 description="Registra períodos excepcionales en los que el barbero no atenderá."
                 eyebrow="Agenda"
                 title="Bloqueos futuros"
@@ -292,46 +283,33 @@ export function BarberBlocksScreen({
             tintColor={theme.primary}
           />
         }
-        renderItem={({ item }) =>
-          resource.isOwnProfile ? (
-            <SurfaceCard style={styles.card}>
-              <View style={styles.blockHeader}>
-                <View style={[styles.blockIcon, { backgroundColor: theme.surfaceMuted }]}>
-                  <AppIcon
-                    color={theme.primary}
-                    name={{ ios: 'calendar.badge.minus', android: 'event_busy', web: 'event_busy' }}
-                    size={20}
-                  />
-                </View>
-                <View style={styles.blockCopy}>
-                  <ThemedText selectable style={styles.blockDate}>
-                    {formatDate(item.startsAt)}
-                  </ThemedText>
-                  <ThemedText selectable style={styles.blockTime} themeColor="textSecondary">
-                    {formatBlockRange(item)}
-                  </ThemedText>
-                </View>
+        renderItem={({ item }) => (
+          <SurfaceCard style={styles.card}>
+            <View style={styles.blockHeader}>
+              <View style={[styles.blockIcon, { backgroundColor: theme.surfaceMuted }]}>
+                <AppIcon
+                  color={theme.primary}
+                  name={{ ios: 'calendar.badge.minus', android: 'event_busy', web: 'event_busy' }}
+                  size={20}
+                />
               </View>
-              <ThemedText selectable style={styles.reason} themeColor="textSecondary">
-                {item.reason ?? 'Sin motivo especificado'}
-              </ThemedText>
-              <View style={styles.blockActions}>
-                <BlockDeleteAction block={item} onPress={() => setPending(item)} />
+              <View style={styles.blockCopy}>
+                <ThemedText selectable style={styles.blockDate}>
+                  {formatDate(item.startsAt)}
+                </ThemedText>
+                <ThemedText selectable style={styles.blockTime} themeColor="textSecondary">
+                  {formatBlockRange(item)}
+                </ThemedText>
               </View>
-            </SurfaceCard>
-          ) : (
-            <SurfaceCard style={styles.card}>
-              <ThemedText style={styles.title}>{item.reason ?? 'Bloqueo excepcional'}</ThemedText>
-              <ThemedText selectable>Desde: {formatAdminDateTime(item.startsAt)}</ThemedText>
-              <ThemedText selectable>Hasta: {formatAdminDateTime(item.endsAt)}</ThemedText>
-              <ActionButton
-                label="Eliminar bloqueo"
-                onPress={() => setPending(item)}
-                variant="danger"
-              />
-            </SurfaceCard>
-          )
-        }
+            </View>
+            <ThemedText selectable style={styles.reason} themeColor="textSecondary">
+              {item.reason ?? 'Sin motivo especificado'}
+            </ThemedText>
+            <View style={styles.blockActions}>
+              <BlockDeleteAction block={item} onPress={() => setPending(item)} />
+            </View>
+          </SurfaceCard>
+        )}
       />
     </ThemedView>
   );

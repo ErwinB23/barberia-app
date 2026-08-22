@@ -16,13 +16,14 @@ export default function BarbershopsLayout() {
     >
       <Stack.Screen name="index" options={{ title: 'Mis barberías' }} />
       <Stack.Screen name="create" options={{ title: 'Nueva barbería' }} />
-      <Stack.Screen name="[barbershopId]/index" options={{ title: 'Administración' }} />
+      <Stack.Screen name="[barbershopId]/index" options={{ title: 'Inicio' }} />
       <Stack.Screen name="[barbershopId]/edit" options={{ title: 'Datos generales' }} />
       <Stack.Screen name="[barbershopId]/settings" options={{ title: 'Ajustes generales' }} />
       <Stack.Screen
         name="[barbershopId]/payment-settings"
         options={{ title: 'Configuración Yape' }}
       />
+      <Stack.Screen name="[barbershopId]/publication" options={{ title: 'Publicación' }} />
       <Stack.Screen name="[barbershopId]/services" options={{ headerShown: false }} />
       <Stack.Screen name="[barbershopId]/appointments" options={{ headerShown: false }} />
       <Stack.Screen name="[barbershopId]/schedules" options={{ headerShown: false }} />
