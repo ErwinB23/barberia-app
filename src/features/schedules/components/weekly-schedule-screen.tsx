@@ -3,6 +3,7 @@ import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { ActionButton } from '@/shared/components/ui/action-button';
+import { ListScreenSkeleton } from '@/shared/components/ui/list-screen-skeleton';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
@@ -83,11 +84,7 @@ export function WeeklyScheduleScreen({ barbershopId, saved }: WeeklyScheduleScre
   };
 
   if (isLoading) {
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Cargando horario semanal…</ThemedText>
-      </ThemedView>
-    );
+    return <ListScreenSkeleton rows={4} />;
   }
 
   if (role !== 'administrator') {
@@ -123,6 +120,7 @@ export function WeeklyScheduleScreen({ barbershopId, saved }: WeeklyScheduleScre
         ListHeaderComponent={
           <View style={styles.header}>
             <ScreenHeading
+              compact
               description="Define uno o varios intervalos por día. Un día sin intervalos permanece cerrado."
               eyebrow="Operación"
               title="Horario semanal"
@@ -130,11 +128,6 @@ export function WeeklyScheduleScreen({ barbershopId, saved }: WeeklyScheduleScre
             <ActionButton
               label="Cierres excepcionales"
               onPress={() => router.push(`/barbershops/${barbershopId}/schedules/closures`)}
-            />
-            <ActionButton
-              disabled={isRefreshing}
-              label="Actualizar horario"
-              onPress={() => void refresh()}
               variant="secondary"
             />
 

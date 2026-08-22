@@ -249,6 +249,10 @@ export function getSelectedServiceIds(assignments: readonly { serviceId: string 
   return [...new Set(assignments.map((assignment) => assignment.serviceId))].sort();
 }
 
+export function canToggleBarberService(service: { isActive: boolean; isAssigned: boolean }) {
+  return service.isActive || service.isAssigned;
+}
+
 function isValidDate(value: string) {
   const match = DATE_PATTERN.exec(value);
   if (!match) {

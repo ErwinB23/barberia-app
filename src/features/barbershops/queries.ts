@@ -1,7 +1,7 @@
 import { supabase } from '@/infrastructure/supabase/client';
 
 import { mapMembershipRows } from './mappers';
-import { buildPublicationReadiness } from './publication';
+import { buildPublicationReadiness, type PublicationRequirement } from './publication';
 import type {
   BarbershopDetail,
   BarbershopSettings,
@@ -46,7 +46,7 @@ export async function getUserBarbershops(userId: string): Promise<UserBarbershop
   return mapMembershipRows(data);
 }
 
-async function getOwnBarbershopMembership(
+export async function getOwnBarbershopMembership(
   userId: string,
   barbershopId: string,
 ): Promise<UserBarbershop | null> {
@@ -83,9 +83,9 @@ async function getBarbershopSettings(barbershopId: string): Promise<BarbershopSe
   return data;
 }
 
-async function getPublicationReadiness(
+export async function getBarbershopPublicationReadiness(
   barbershop: UserBarbershop['barbershop'],
-): Promise<BarbershopDetail['publicationReadiness']> {
+): Promise<PublicationRequirement[]> {
   const [hoursResult, servicesResult, barbersResult] = await Promise.all([
     supabase.from('barbershop_hours').select('id').eq('barbershop_id', barbershop.id).limit(1),
     supabase
@@ -140,7 +140,7 @@ export async function getBarbershopDetail(
     membership.role === 'administrator'
       ? await Promise.all([
           getBarbershopSettings(barbershopId),
-          getPublicationReadiness(membership.barbershop),
+          getBarbershopPublicationReadiness(membership.barbershop),
         ])
       : [null, null];
 

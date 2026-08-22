@@ -160,13 +160,13 @@ export function ServiceDetailScreen({ barbershopId, serviceId, saved }: ServiceD
         keyExtractor={(style) => style.id}
         ListEmptyComponent={
           <SurfaceCard style={styles.emptyCard}>
-            <ThemedText style={styles.emptyTitle}>Sin estilos asociados</ThemedText>
+            <ThemedText style={styles.emptyTitle}>Este servicio aún no tiene estilos.</ThemedText>
             <ThemedText style={styles.description} themeColor="textSecondary">
               Los estilos son referencias visuales y no modifican el precio ni la duración del
               servicio.
             </ThemedText>
             <ActionButton
-              label="Crear primer estilo"
+              label="Agregar estilo"
               onPress={() =>
                 router.push(`/barbershops/${barbershopId}/services/${serviceId}/styles/new`)
               }
@@ -176,6 +176,7 @@ export function ServiceDetailScreen({ barbershopId, serviceId, saved }: ServiceD
         ListHeaderComponent={
           <View style={styles.header}>
             <ScreenHeading
+              compact
               description={
                 service.description ?? 'Configura este servicio y sus referencias visuales.'
               }

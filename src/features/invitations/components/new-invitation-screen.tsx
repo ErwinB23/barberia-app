@@ -75,7 +75,7 @@ export function NewInvitationScreen({ barbershopId }: { barbershopId: string | n
     } catch (deliveryError) {
       setPendingEmailInvitationId(invitationId);
       setMutationError(getInvitationErrorMessage(deliveryError, 'email'));
-      setFeedback('La invitación quedó registrada y continúa pendiente.');
+      setFeedback('La invitación fue creada, pero el correo no pudo enviarse.');
     }
   };
 
@@ -174,9 +174,6 @@ export function NewInvitationScreen({ barbershopId }: { barbershopId: string | n
               onChange={(value) => setField('role', value)}
               value={values.role}
             />
-            {values.role === 'administrator' ? (
-              <StatusMessage message="El backend actual no permite usar esta invitación para promover a administrador a una persona que ya tiene una membresía activa." />
-            ) : null}
             <InvitationChoiceField
               choices={CHANNEL_CHOICES}
               error={errors.channel}

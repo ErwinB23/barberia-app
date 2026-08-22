@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { ActionButton } from '@/shared/components/ui/action-button';
+import { ListScreenSkeleton } from '@/shared/components/ui/list-screen-skeleton';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
@@ -41,11 +42,7 @@ export function AdminInvitationsScreen({ barbershopId }: { barbershopId: string 
   };
 
   if (isLoading) {
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Cargando invitaciones…</ThemedText>
-      </ThemedView>
-    );
+    return <ListScreenSkeleton />;
   }
 
   if (role !== 'administrator' || !barbershopId) {
@@ -78,6 +75,7 @@ export function AdminInvitationsScreen({ barbershopId }: { barbershopId: string 
         ListHeaderComponent={
           <View style={styles.header}>
             <ScreenHeading
+              compact
               description="Incorpora barberos o administradores mediante el flujo seguro de invitación."
               eyebrow="Personal"
               title="Invitaciones"
@@ -85,12 +83,6 @@ export function AdminInvitationsScreen({ barbershopId }: { barbershopId: string 
             <ActionButton
               label="Nueva invitación"
               onPress={() => router.push(`/barbershops/${barbershopId}/invitations/new`)}
-            />
-            <ActionButton
-              disabled={isRefreshing}
-              label="Actualizar invitaciones"
-              onPress={() => void reload()}
-              variant="secondary"
             />
             {feedback ? <StatusMessage message={feedback} tone="success" /> : null}
             {error || mutationError ? <StatusMessage message={mutationError ?? error!} /> : null}

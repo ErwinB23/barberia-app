@@ -3,6 +3,7 @@ import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { ActionButton } from '@/shared/components/ui/action-button';
+import { ListScreenSkeleton } from '@/shared/components/ui/list-screen-skeleton';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
@@ -64,11 +65,7 @@ export function ServicesScreen({ barbershopId }: { barbershopId: string | null }
   };
 
   if (isLoading) {
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Cargando servicios…</ThemedText>
-      </ThemedView>
-    );
+    return <ListScreenSkeleton />;
   }
 
   if (role !== 'administrator') {
@@ -97,13 +94,12 @@ export function ServicesScreen({ barbershopId }: { barbershopId: string | null }
         keyExtractor={(service) => service.id}
         ListEmptyComponent={
           <SurfaceCard style={styles.emptyCard}>
-            <ThemedText style={styles.emptyTitle}>Tu catálogo está listo para comenzar</ThemedText>
+            <ThemedText style={styles.emptyTitle}>Aún no has creado servicios.</ThemedText>
             <ThemedText style={styles.emptyDescription} themeColor="textSecondary">
-              Crea el primer servicio con su precio y duración. Luego podrás añadir referencias de
-              estilos.
+              Agrega el primer servicio con su precio y duración para comenzar a recibir reservas.
             </ThemedText>
             <ActionButton
-              label="Crear primer servicio"
+              label="Crear servicio"
               onPress={() => router.push(`/barbershops/${barbershopId}/services/new`)}
             />
           </SurfaceCard>
@@ -111,19 +107,14 @@ export function ServicesScreen({ barbershopId }: { barbershopId: string | null }
         ListHeaderComponent={
           <View style={styles.header}>
             <ScreenHeading
-              description="Administra precios, duración y referencias visuales sin eliminar el historial."
+              compact
+              description="Administra precio, duración y referencias visuales sin alterar el historial."
               eyebrow="Catálogo"
               title="Servicios"
             />
             <ActionButton
-              label="Nuevo servicio"
+              label="Crear servicio"
               onPress={() => router.push(`/barbershops/${barbershopId}/services/new`)}
-            />
-            <ActionButton
-              disabled={isRefreshing}
-              label="Actualizar catálogo"
-              onPress={() => void refresh()}
-              variant="secondary"
             />
             {feedback ? <StatusMessage message={feedback} tone="success" /> : null}
             {error || mutationError ? <StatusMessage message={mutationError ?? error!} /> : null}

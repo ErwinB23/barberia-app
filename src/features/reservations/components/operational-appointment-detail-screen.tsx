@@ -1,15 +1,17 @@
 import { useCallback, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useAuth } from '@/features/auth/hooks/use-auth';
 import { formatLimaDate, formatLimaTime, formatPen, useFocusedResource } from '@/features/booking';
 import { ActionButton } from '@/shared/components/ui/action-button';
 import { FormField } from '@/shared/components/ui/form-field';
+import { ListScreenSkeleton } from '@/shared/components/ui/list-screen-skeleton';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
 import { ThemedText } from '@/shared/components/ui/themed-text';
 import { ThemedView } from '@/shared/components/ui/themed-view';
+import { useTheme } from '@/theme/hooks/use-theme';
 import { Spacing } from '@/theme/spacing';
 import { Layout, TypeScale } from '@/theme/tokens';
 
@@ -24,12 +26,14 @@ import {
 import {
   getOperationalActions,
   validateYapeConfirmation,
+  type OperationalActions,
   type YapeConfirmationFormErrors,
   type YapeConfirmationFormValues,
 } from '../appointment-domain';
 import { getReservationErrorMessage } from '../errors';
 import { getOperationalAppointment } from '../queries';
 import { getPaymentMethodLabel, getPaymentStatusLabel } from '../reservation-domain';
+import type { OperationalAppointment } from '../types';
 import { APPOINTMENT_ACTION_COPY, type AppointmentAction } from './appointment-action-copy';
 import { PaymentStatusBadge, ReservationStatusBadge } from './appointment-status-badge';
 import { BarberAppointmentDetailSkeleton } from './barber-appointment-skeletons';
@@ -38,7 +42,9 @@ import { BarberOperationalAppointmentDetail } from './barber-operational-appoint
 function DetailLine({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.detailLine}>
-      <ThemedText themeColor="textSecondary">{label}</ThemedText>
+      <ThemedText style={styles.detailLabel} themeColor="textSecondary">
+        {label}
+      </ThemedText>
       <ThemedText selectable style={styles.detailValue}>
         {value}
       </ThemedText>
@@ -47,10 +53,12 @@ function DetailLine({ label, value }: { label: string; value: string }) {
 }
 
 function YapeConfirmationForm({
+  appointment,
   isSubmitting,
   onCancel,
   onSubmit,
 }: {
+  appointment: OperationalAppointment;
   isSubmitting: boolean;
   onCancel: () => void;
   onSubmit: (values: YapeConfirmationFormValues) => void;
@@ -65,11 +73,11 @@ function YapeConfirmationForm({
   };
 
   return (
-    <SurfaceCard style={styles.warningCard}>
+    <SurfaceCard style={styles.confirmationCard}>
       <ThemedText style={styles.sectionTitle}>Confirmar pago Yape</ThemedText>
       <ThemedText themeColor="textSecondary">
-        Solo un administrador puede registrar esta confirmación. La referencia y la nota son
-        opcionales.
+        Confirma que recibiste {formatPen(appointment.payment?.amount ?? appointment.totalPrice)} de{' '}
+        {appointment.clientContact.fullName ?? 'este cliente'} mediante Yape.
       </ThemedText>
       <FormField
         autoCapitalize="characters"
@@ -93,13 +101,156 @@ function YapeConfirmationForm({
         }}
         value={values.note}
       />
-      <ActionButton isLoading={isSubmitting} label="Confirmar Yape" onPress={submit} />
-      <ActionButton
-        disabled={isSubmitting}
-        label="Cancelar"
-        onPress={onCancel}
-        variant="secondary"
-      />
+      <ActionButton isLoading={isSubmitting} label="Confirmar pago Yape" onPress={submit} />
+      <ActionButton disabled={isSubmitting} label="Volver" onPress={onCancel} variant="secondary" />
+    </SurfaceCard>
+  );
+}
+
+function AppointmentSummary({ appointment }: { appointment: OperationalAppointment }) {
+  return (
+    <View style={styles.column}>
+      <SurfaceCard style={styles.card}>
+        <ThemedText style={styles.sectionTitle}>Cliente</ThemedText>
+        <DetailLine
+          label="Nombre"
+          value={appointment.clientContact.fullName ?? 'Sin nombre registrado'}
+        />
+        <DetailLine label="Teléfono" value={appointment.clientContact.phone ?? 'No registrado'} />
+      </SurfaceCard>
+
+      <SurfaceCard style={styles.card}>
+        <ThemedText style={styles.sectionTitle}>Atención</ThemedText>
+        <DetailLine label="Barbero" value={appointment.barberName} />
+        <View style={styles.servicesList}>
+          {appointment.items.map((item) => (
+            <View key={item.id} style={styles.serviceRow}>
+              <View style={styles.serviceCopy}>
+                <ThemedText style={styles.serviceName}>{item.serviceName}</ThemedText>
+                {item.styleName ? (
+                  <ThemedText themeColor="textSecondary">Estilo: {item.styleName}</ThemedText>
+                ) : null}
+              </View>
+              <ThemedText style={styles.serviceDuration} themeColor="textSecondary">
+                {item.durationAtBooking} min
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+        <View style={styles.totalRow}>
+          <View>
+            <ThemedText style={styles.detailLabel} themeColor="textSecondary">
+              Duración total
+            </ThemedText>
+            <ThemedText style={styles.totalValue}>
+              {appointment.totalDurationMinutes} min
+            </ThemedText>
+          </View>
+          <View style={styles.totalAmount}>
+            <ThemedText style={styles.detailLabel} themeColor="textSecondary">
+              Total
+            </ThemedText>
+            <ThemedText style={styles.totalValue}>{formatPen(appointment.totalPrice)}</ThemedText>
+          </View>
+        </View>
+      </SurfaceCard>
+    </View>
+  );
+}
+
+function PaymentPanel({ appointment }: { appointment: OperationalAppointment }) {
+  return (
+    <SurfaceCard style={styles.card}>
+      <View style={styles.sectionHeading}>
+        <ThemedText style={styles.sectionTitle}>Pago</ThemedText>
+        {appointment.payment ? <PaymentStatusBadge status={appointment.payment.status} /> : null}
+      </View>
+      {appointment.payment ? (
+        <>
+          <DetailLine label="Método" value={getPaymentMethodLabel(appointment.payment.method)} />
+          <DetailLine label="Estado" value={getPaymentStatusLabel(appointment.payment.status)} />
+          <DetailLine label="Importe" value={formatPen(appointment.payment.amount)} />
+        </>
+      ) : (
+        <ThemedText themeColor="textSecondary">No hay un pago asociado visible.</ThemedText>
+      )}
+    </SurfaceCard>
+  );
+}
+
+function AvailableActions({
+  actions,
+  appointment,
+  isMutating,
+  onRequest,
+  onYape,
+}: {
+  actions: OperationalActions;
+  appointment: OperationalAppointment;
+  isMutating: boolean;
+  onRequest: (action: AppointmentAction) => void;
+  onYape: () => void;
+}) {
+  const hasActions = Object.values(actions).some(Boolean);
+
+  return (
+    <SurfaceCard style={styles.card}>
+      <ThemedText style={styles.sectionTitle}>Acciones</ThemedText>
+      {actions.canStart ? (
+        <ActionButton
+          disabled={isMutating}
+          label="Iniciar atención"
+          onPress={() => onRequest('start')}
+        />
+      ) : null}
+      {actions.canComplete ? (
+        <ActionButton
+          disabled={isMutating}
+          label="Completar atención"
+          onPress={() => onRequest('complete')}
+        />
+      ) : null}
+      {actions.canConfirmYape ? (
+        <ActionButton
+          disabled={isMutating}
+          label="Confirmar pago Yape"
+          onPress={onYape}
+          variant="secondary"
+        />
+      ) : null}
+      {actions.canConfirmCash ? (
+        <ActionButton
+          disabled={isMutating}
+          label="Confirmar pago en efectivo"
+          onPress={() => onRequest('cash')}
+          variant="secondary"
+        />
+      ) : null}
+      {actions.canRefund ? (
+        <ActionButton
+          disabled={isMutating}
+          label="Registrar reembolso manual"
+          onPress={() => onRequest('refund')}
+          variant="danger"
+        />
+      ) : null}
+      {actions.canMarkNoShow ? (
+        <ActionButton
+          disabled={isMutating}
+          label="Marcar como no asistió"
+          onPress={() => onRequest('no_show')}
+          variant="danger"
+        />
+      ) : appointment.status === 'confirmed' ? (
+        <ThemedText style={styles.guidance} themeColor="textSecondary">
+          “No asistió” se habilita al terminar la tolerancia de 10 minutos.
+        </ThemedText>
+      ) : null}
+      {!hasActions ? (
+        <ThemedText style={styles.guidance} themeColor="textSecondary">
+          No hay acciones disponibles para el estado actual.
+        </ThemedText>
+      ) : null}
     </SurfaceCard>
   );
 }
@@ -113,6 +264,8 @@ export function OperationalAppointmentDetailScreen({
   barberId?: string | null;
   reservationId: string | null;
 }) {
+  const theme = useTheme();
+  const { width } = useWindowDimensions();
   const { user } = useAuth();
   const [confirmation, setConfirmation] = useState<AppointmentAction | null>(null);
   const [showYapeForm, setShowYapeForm] = useState(false);
@@ -124,12 +277,7 @@ export function OperationalAppointmentDetailScreen({
   const load = useCallback(
     () =>
       user && barbershopId && reservationId
-        ? getOperationalAppointment({
-            userId: user.id,
-            barbershopId,
-            barberId,
-            reservationId,
-          })
+        ? getOperationalAppointment({ userId: user.id, barbershopId, barberId, reservationId })
         : Promise.resolve(null),
     [barberId, barbershopId, reservationId, user],
   );
@@ -167,6 +315,7 @@ export function OperationalAppointmentDetailScreen({
       await reload();
     } catch (actionError) {
       setMutationError(getReservationErrorMessage(actionError));
+      await reload();
     } finally {
       isMutatingRef.current = false;
       setIsMutating(false);
@@ -175,12 +324,7 @@ export function OperationalAppointmentDetailScreen({
 
   if (isLoading && !data) {
     if (barberId) return <BarberAppointmentDetailSkeleton />;
-
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Cargando cita…</ThemedText>
-      </ThemedView>
-    );
+    return <ListScreenSkeleton rows={3} />;
   }
 
   if (!data || !reservationId || !barbershopId) {
@@ -220,155 +364,79 @@ export function OperationalAppointmentDetailScreen({
     );
   }
 
+  const isWide = width >= Layout.wideBreakpoint;
+
   return (
     <ThemedView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
-        <ScreenHeading
-          description={`${formatLimaDate(appointment.startsAt)} · ${formatLimaTime(appointment.startsAt)} – ${formatLimaTime(appointment.endsAt)}`}
-          eyebrow={role === 'administrator' ? 'Agenda administrativa' : 'Mi agenda'}
-          title={`Cita #${appointment.id.slice(0, 8).toUpperCase()}`}
-        />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
+        refreshControl={
+          <RefreshControl
+            colors={[theme.primary]}
+            onRefresh={() => void refresh()}
+            refreshing={isRefreshing}
+            tintColor={theme.primary}
+          />
+        }
+      >
+        <View style={styles.headingBlock}>
+          <ScreenHeading
+            compact
+            description={`${formatLimaTime(appointment.startsAt)} – ${formatLimaTime(appointment.endsAt)}`}
+            eyebrow="Agenda administrativa"
+            title={formatLimaDate(appointment.startsAt)}
+          />
+          <ReservationStatusBadge status={appointment.status} />
+        </View>
         {feedback ? <StatusMessage message={feedback} tone="success" /> : null}
         {error || mutationError ? <StatusMessage message={mutationError ?? error!} /> : null}
 
-        <SurfaceCard style={styles.card}>
-          <View style={styles.headingRow}>
-            <ThemedText style={styles.sectionTitle}>Cita</ThemedText>
-            <ReservationStatusBadge status={appointment.status} />
+        <View style={[styles.columns, isWide ? styles.wideColumns : null]}>
+          <AppointmentSummary appointment={appointment} />
+          <View style={styles.column}>
+            <PaymentPanel appointment={appointment} />
+            {confirmation ? (
+              <SurfaceCard style={styles.confirmationCard}>
+                <ThemedText style={styles.sectionTitle}>
+                  {APPOINTMENT_ACTION_COPY[confirmation].label}
+                </ThemedText>
+                <ThemedText themeColor="textSecondary">
+                  {APPOINTMENT_ACTION_COPY[confirmation].confirmation}
+                </ThemedText>
+                <ActionButton
+                  isLoading={isMutating}
+                  label={APPOINTMENT_ACTION_COPY[confirmation].confirmLabel}
+                  onPress={() => void runAction(confirmation)}
+                  variant={
+                    confirmation === 'no_show' || confirmation === 'refund' ? 'danger' : 'primary'
+                  }
+                />
+                <ActionButton
+                  disabled={isMutating}
+                  label="Volver"
+                  onPress={() => setConfirmation(null)}
+                  variant="secondary"
+                />
+              </SurfaceCard>
+            ) : showYapeForm ? (
+              <YapeConfirmationForm
+                appointment={appointment}
+                isSubmitting={isMutating}
+                onCancel={() => setShowYapeForm(false)}
+                onSubmit={(values) => void runAction('yape', values)}
+              />
+            ) : (
+              <AvailableActions
+                actions={actions}
+                appointment={appointment}
+                isMutating={isMutating}
+                onRequest={setConfirmation}
+                onYape={() => setShowYapeForm(true)}
+              />
+            )}
           </View>
-          <DetailLine label="Barbería" value={appointment.barbershopName} />
-          <DetailLine label="Barbero" value={appointment.barberName} />
-          <DetailLine
-            label="Cliente"
-            value={appointment.clientContact.fullName ?? 'Sin nombre registrado'}
-          />
-          <DetailLine label="Teléfono" value={appointment.clientContact.phone ?? 'No registrado'} />
-          <DetailLine label="Duración" value={`${appointment.totalDurationMinutes} min`} />
-          <DetailLine label="Total" value={formatPen(appointment.totalPrice)} />
-        </SurfaceCard>
-
-        <SurfaceCard style={styles.card}>
-          <ThemedText style={styles.sectionTitle}>Servicios</ThemedText>
-          {appointment.items.map((item) => (
-            <View key={item.id} style={styles.itemRow}>
-              <View style={styles.itemCopy}>
-                <ThemedText style={styles.itemName}>{item.serviceName}</ThemedText>
-                {item.styleName ? (
-                  <ThemedText themeColor="textSecondary">Estilo: {item.styleName}</ThemedText>
-                ) : null}
-              </View>
-              <ThemedText themeColor="textSecondary">{item.durationAtBooking} min</ThemedText>
-            </View>
-          ))}
-        </SurfaceCard>
-
-        <SurfaceCard style={styles.card}>
-          <View style={styles.headingRow}>
-            <ThemedText style={styles.sectionTitle}>Pago</ThemedText>
-            {appointment.payment ? (
-              <PaymentStatusBadge status={appointment.payment.status} />
-            ) : null}
-          </View>
-          {appointment.payment ? (
-            <>
-              <DetailLine
-                label="Método"
-                value={getPaymentMethodLabel(appointment.payment.method)}
-              />
-              <DetailLine
-                label="Estado"
-                value={getPaymentStatusLabel(appointment.payment.status)}
-              />
-              <DetailLine label="Importe" value={formatPen(appointment.payment.amount)} />
-            </>
-          ) : (
-            <ThemedText themeColor="textSecondary">No hay un pago asociado visible.</ThemedText>
-          )}
-        </SurfaceCard>
-
-        {confirmation ? (
-          <SurfaceCard style={styles.warningCard}>
-            <ThemedText style={styles.sectionTitle}>
-              {APPOINTMENT_ACTION_COPY[confirmation].label}
-            </ThemedText>
-            <ThemedText themeColor="textSecondary">
-              {APPOINTMENT_ACTION_COPY[confirmation].confirmation} El backend validará nuevamente el
-              estado y tus permisos.
-            </ThemedText>
-            <ActionButton
-              isLoading={isMutating}
-              label="Confirmar acción"
-              onPress={() => void runAction(confirmation)}
-              variant={
-                confirmation === 'no_show' || confirmation === 'refund' ? 'danger' : 'primary'
-              }
-            />
-            <ActionButton
-              disabled={isMutating}
-              label="Cancelar"
-              onPress={() => setConfirmation(null)}
-              variant="secondary"
-            />
-          </SurfaceCard>
-        ) : showYapeForm ? (
-          <YapeConfirmationForm
-            isSubmitting={isMutating}
-            onCancel={() => setShowYapeForm(false)}
-            onSubmit={(values) => void runAction('yape', values)}
-          />
-        ) : (
-          <SurfaceCard style={styles.card}>
-            <ThemedText style={styles.sectionTitle}>Acciones disponibles</ThemedText>
-            {actions.canStart ? (
-              <ActionButton label="Iniciar atención" onPress={() => setConfirmation('start')} />
-            ) : null}
-            {actions.canComplete ? (
-              <ActionButton
-                label="Completar atención"
-                onPress={() => setConfirmation('complete')}
-              />
-            ) : null}
-            {actions.canMarkNoShow ? (
-              <ActionButton
-                label="Marcar No asistió"
-                onPress={() => setConfirmation('no_show')}
-                variant="danger"
-              />
-            ) : appointment.status === 'confirmed' ? (
-              <ThemedText themeColor="textSecondary">
-                “No asistió” se habilita cuando termina la tolerancia de 10 minutos.
-              </ThemedText>
-            ) : null}
-            {actions.canConfirmCash ? (
-              <ActionButton
-                label="Confirmar efectivo"
-                onPress={() => setConfirmation('cash')}
-                variant="secondary"
-              />
-            ) : null}
-            {actions.canConfirmYape ? (
-              <ActionButton
-                label="Confirmar Yape"
-                onPress={() => setShowYapeForm(true)}
-                variant="secondary"
-              />
-            ) : null}
-            {actions.canRefund ? (
-              <ActionButton
-                label="Registrar reembolso"
-                onPress={() => setConfirmation('refund')}
-                variant="danger"
-              />
-            ) : null}
-            {!Object.values(actions).some(Boolean) ? (
-              <ThemedText themeColor="textSecondary">
-                No hay acciones operativas disponibles para el estado actual.
-              </ThemedText>
-            ) : null}
-          </SurfaceCard>
-        )}
-
-        <ActionButton label="Actualizar" onPress={() => void reload()} variant="secondary" />
+        </View>
       </ScrollView>
     </ThemedView>
   );
@@ -379,15 +447,19 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', gap: Spacing.three, padding: Spacing.four },
   content: {
     width: '100%',
-    maxWidth: Layout.contentMaxWidth,
+    maxWidth: Layout.clientContentMaxWidth,
     alignSelf: 'center',
     gap: Spacing.four,
     padding: Spacing.four,
     paddingBottom: Spacing.six,
   },
+  headingBlock: { alignItems: 'flex-start', gap: Spacing.three },
+  columns: { gap: Spacing.four },
+  wideColumns: { flexDirection: 'row', alignItems: 'flex-start' },
+  column: { minWidth: 0, flex: 1, gap: Spacing.four },
   card: { gap: Spacing.three, padding: Spacing.four },
-  warningCard: { gap: Spacing.three, padding: Spacing.four },
-  headingRow: {
+  confirmationCard: { gap: Spacing.three, padding: Spacing.four },
+  sectionHeading: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -395,8 +467,20 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { flex: 1, fontSize: TypeScale.title, fontWeight: '700' },
   detailLine: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
-  detailValue: { flexShrink: 1, textAlign: 'right', fontWeight: '700' },
-  itemRow: { flexDirection: 'row', gap: Spacing.three },
-  itemCopy: { flex: 1, gap: Spacing.one },
-  itemName: { fontWeight: '700' },
+  detailLabel: { fontSize: TypeScale.label },
+  detailValue: { minWidth: 0, flexShrink: 1, textAlign: 'right', fontWeight: '700' },
+  servicesList: { gap: Spacing.three },
+  serviceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
+  serviceCopy: { minWidth: 0, flex: 1, gap: Spacing.one },
+  serviceName: { fontWeight: '700' },
+  serviceDuration: { fontSize: TypeScale.label, fontVariant: ['tabular-nums'] },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    paddingTop: Spacing.two,
+  },
+  totalAmount: { alignItems: 'flex-end' },
+  totalValue: { marginTop: Spacing.one, fontSize: TypeScale.title, fontWeight: '800' },
+  guidance: { fontSize: TypeScale.label, lineHeight: 21 },
 });

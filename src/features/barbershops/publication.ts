@@ -1,3 +1,5 @@
+import type { BarbershopStatus } from './types';
+
 export type PublicationRequirementKey =
   'basicData' | 'openingHours' | 'activeService' | 'activeBarber' | 'scheduledActiveBarber';
 
@@ -14,6 +16,21 @@ export type PublicationRequirement = {
   key: PublicationRequirementKey;
   label: string;
   isComplete: boolean;
+};
+
+const STATUS_COPY: Record<BarbershopStatus, { label: string; description: string }> = {
+  published: {
+    label: 'Publicada',
+    description: 'Visible y disponible para nuevas reservas.',
+  },
+  paused: {
+    label: 'Pausada',
+    description: 'Visible, pero temporalmente no acepta nuevas reservas.',
+  },
+  unpublished: {
+    label: 'No publicada',
+    description: 'No es visible para los clientes.',
+  },
 };
 
 export function buildPublicationReadiness(
@@ -44,4 +61,22 @@ export function buildPublicationReadiness(
       isComplete: input.hasScheduledActiveBarber,
     },
   ];
+}
+
+export function canPublishBarbershop(readiness: readonly PublicationRequirement[]) {
+  return readiness.length > 0 && readiness.every((requirement) => requirement.isComplete);
+}
+
+export function getPublicationRequirementRoute(
+  key: PublicationRequirementKey,
+  barbershopId: string,
+) {
+  if (key === 'basicData') return `/barbershops/${barbershopId}/edit`;
+  if (key === 'openingHours') return `/barbershops/${barbershopId}/schedules`;
+  if (key === 'activeService') return `/barbershops/${barbershopId}/services`;
+  return `/barbershops/${barbershopId}/barbers`;
+}
+
+export function getPublicationStatusCopy(status: BarbershopStatus) {
+  return STATUS_COPY[status];
 }

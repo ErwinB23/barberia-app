@@ -15,7 +15,11 @@ import { Spacing } from '@/theme/spacing';
 import { Layout, Radius, TypeScale } from '@/theme/tokens';
 
 import { assignBarberService, unassignBarberService } from '../actions';
-import { getBarberWorkspaceRoutes, type BarberOperationalAccess } from '../barber-domain';
+import {
+  canToggleBarberService,
+  getBarberWorkspaceRoutes,
+  type BarberOperationalAccess,
+} from '../barber-domain';
 import { getBarberErrorMessage } from '../errors';
 import { useBarberProfileResource } from '../hooks/use-barber-profile-resource';
 import {
@@ -172,6 +176,7 @@ export function BarberServicesScreen({
               </>
             ) : (
               <ScreenHeading
+                compact
                 description="Asigna únicamente servicios del catálogo de esta barbería."
                 eyebrow="Capacidades"
                 title="Servicios del barbero"
@@ -273,15 +278,20 @@ export function BarberServicesScreen({
               borderColor: item.isAssigned ? theme.primary : theme.border,
             },
           ];
+          const canToggle = canToggleBarberService(item);
 
           return resource.access.canManageServices ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityState={{ checked: item.isAssigned, disabled: changingId === item.id }}
-              disabled={changingId === item.id}
+              accessibilityState={{
+                checked: item.isAssigned,
+                disabled: changingId === item.id || !canToggle,
+              }}
+              disabled={changingId === item.id || !canToggle}
               onPress={() => (item.isAssigned ? setPendingRemoval(item) : void change(item, true))}
               style={({ pressed }) => [
                 ...optionStyle,
+                !canToggle ? styles.disabledOption : null,
                 pressed ? { backgroundColor: theme.surfaceMuted } : null,
               ]}
             >
@@ -347,6 +357,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.three,
   },
+  disabledOption: { opacity: 0.55 },
   confirm: { gap: Spacing.three, padding: Spacing.four },
   actions: { gap: Spacing.two },
   empty: { gap: Spacing.three, padding: Spacing.four },

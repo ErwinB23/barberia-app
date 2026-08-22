@@ -108,6 +108,7 @@ export function BarberDetailScreen({
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
         <ScreenHeading
+          compact
           description={barber.isActive ? 'Perfil operativo activo' : 'Perfil operativo inactivo'}
           eyebrow="Barbero"
           title={barber.displayName}

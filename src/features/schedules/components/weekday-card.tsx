@@ -1,6 +1,5 @@
 import { StyleSheet, View } from 'react-native';
 
-import { ActionButton } from '@/shared/components/ui/action-button';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
 import { ThemedText } from '@/shared/components/ui/themed-text';
 import { useTheme } from '@/theme/hooks/use-theme';
@@ -69,11 +68,12 @@ export function WeekdayCard({
         </ThemedText>
       )}
 
-      <ActionButton
-        label={isOpen ? 'Agregar otro intervalo' : 'Agregar intervalo'}
-        onPress={onAdd}
-        variant="secondary"
-      />
+      <View style={styles.addAction}>
+        <ScheduleTextButton
+          label={isOpen ? 'Agregar otro intervalo' : 'Agregar intervalo'}
+          onPress={onAdd}
+        />
+      </View>
     </SurfaceCard>
   );
 }
@@ -128,6 +128,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.two,
   },
+  addAction: { alignItems: 'flex-start' },
   closedCopy: {
     fontSize: TypeScale.label,
     lineHeight: 21,

@@ -39,14 +39,16 @@ type FilterableAppointment = {
   barberId: string;
   startsAt: string;
   status: ReservationStatus;
-  payment: { status: PaymentStatus } | null;
+  payment: { method?: PaymentMethod; status: PaymentStatus } | null;
 };
 
 export type AgendaFilters = {
   period: AgendaPeriod;
   barberId: string | null;
   status: ReservationStatus | null;
-  pendingPaymentsOnly: boolean;
+  paymentStatus: PaymentStatus | null;
+  paymentMethod: PaymentMethod | null;
+  pendingPaymentsOnly?: boolean;
 };
 
 export type YapeConfirmationFormValues = {
@@ -181,18 +183,40 @@ export function filterAgendaAppointments<T extends FilterableAppointment>(
   filters: AgendaFilters,
   now = new Date(),
 ) {
+  const paymentStatus = filters.paymentStatus ?? (filters.pendingPaymentsOnly ? 'pending' : null);
   const filtered = appointments.filter(
     (appointment) =>
       matchesPeriod(appointment, filters.period, now) &&
       (!filters.barberId || appointment.barberId === filters.barberId) &&
       (!filters.status || appointment.status === filters.status) &&
-      (!filters.pendingPaymentsOnly || appointment.payment?.status === 'pending'),
+      (!paymentStatus || appointment.payment?.status === paymentStatus) &&
+      (!filters.paymentMethod || appointment.payment?.method === filters.paymentMethod),
   );
 
   return filtered.sort((left, right) => {
     const direction = filters.period === 'history' ? -1 : 1;
     return direction * left.startsAt.localeCompare(right.startsAt);
   });
+}
+
+export function hasSecondaryAgendaFilters(filters: AgendaFilters) {
+  return Boolean(
+    filters.barberId ||
+    filters.status ||
+    filters.paymentStatus ||
+    filters.paymentMethod ||
+    filters.pendingPaymentsOnly,
+  );
+}
+
+export function clearSecondaryAgendaFilters(filters: AgendaFilters): AgendaFilters {
+  return {
+    period: filters.period,
+    barberId: null,
+    status: null,
+    paymentStatus: null,
+    paymentMethod: null,
+  };
 }
 
 export function canClientChangePaymentMethod(

@@ -3,6 +3,7 @@ import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { ActionButton } from '@/shared/components/ui/action-button';
+import { ListScreenSkeleton } from '@/shared/components/ui/list-screen-skeleton';
 import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { StatusMessage } from '@/shared/components/ui/status-message';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
@@ -61,12 +62,7 @@ export function BarbersScreen({ barbershopId }: { barbershopId: string | null })
     }
   };
 
-  if (isLoading)
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText themeColor="textSecondary">Cargando barberos…</ThemedText>
-      </ThemedView>
-    );
+  if (isLoading) return <ListScreenSkeleton />;
   if (role !== 'administrator')
     return (
       <ThemedView style={styles.centered}>
@@ -99,6 +95,7 @@ export function BarbersScreen({ barbershopId }: { barbershopId: string | null })
         ListHeaderComponent={
           <View style={styles.header}>
             <ScreenHeading
+              compact
               description="Gestiona el equipo operativo, sus servicios, horarios y bloqueos."
               eyebrow="Equipo"
               title="Barberos"

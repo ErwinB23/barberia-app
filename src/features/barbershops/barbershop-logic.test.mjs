@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { getBarbershopErrorMessage, getPublicationErrorMessage } from './errors.ts';
-import { buildPublicationReadiness } from './publication.ts';
+import {
+  buildPublicationReadiness,
+  canPublishBarbershop,
+  getPublicationRequirementRoute,
+  getPublicationStatusCopy,
+} from './publication.ts';
 import {
   normalizeBarbershopForm,
   normalizeYapeSettingsForm,
@@ -69,6 +74,43 @@ test('considera incompletos los datos básicos vacíos', () => {
   });
 
   assert.equal(basicData?.isComplete, false);
+});
+
+test('bloquea publicación incompleta y dirige al requisito pendiente correcto', () => {
+  const readiness = buildPublicationReadiness({
+    phone: '+51 999 111 222',
+    address: 'Av. Principal 123',
+    hasOpeningHours: true,
+    hasActiveService: true,
+    hasActiveBarber: true,
+    hasScheduledActiveBarber: false,
+  });
+
+  assert.equal(canPublishBarbershop(readiness), false);
+  assert.equal(
+    getPublicationRequirementRoute('scheduledActiveBarber', 'shop-a'),
+    '/barbershops/shop-a/barbers',
+  );
+  assert.equal(getPublicationRequirementRoute('basicData', 'shop-a'), '/barbershops/shop-a/edit');
+  assert.equal(
+    canPublishBarbershop(readiness.map((item) => ({ ...item, isComplete: true }))),
+    true,
+  );
+});
+
+test('explica sin depender del color los tres estados de publicación', () => {
+  assert.deepEqual(getPublicationStatusCopy('published'), {
+    label: 'Publicada',
+    description: 'Visible y disponible para nuevas reservas.',
+  });
+  assert.deepEqual(getPublicationStatusCopy('paused'), {
+    label: 'Pausada',
+    description: 'Visible, pero temporalmente no acepta nuevas reservas.',
+  });
+  assert.deepEqual(getPublicationStatusCopy('unpublished'), {
+    label: 'No publicada',
+    description: 'No es visible para los clientes.',
+  });
 });
 
 test('traduce cada requisito rechazado por publish_barbershop', () => {
