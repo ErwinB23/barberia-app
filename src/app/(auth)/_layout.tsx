@@ -18,9 +18,12 @@ export default function AuthLayout() {
         headerTintColor: theme.text,
       }}
     >
-      <Stack.Screen name="login" options={{ title: 'Iniciar sesión' }} />
-      <Stack.Screen name="register" options={{ title: 'Crear cuenta' }} />
-      <Stack.Screen name="forgot-password" options={{ title: 'Recuperar contraseña' }} />
+      <Stack.Screen name="login" options={{ headerTitle: '', title: 'Iniciar sesión' }} />
+      <Stack.Screen name="register" options={{ headerTitle: '', title: 'Crear cuenta' }} />
+      <Stack.Screen
+        name="forgot-password"
+        options={{ headerTitle: '', title: 'Recuperar contraseña' }}
+      />
     </Stack>
   );
 }

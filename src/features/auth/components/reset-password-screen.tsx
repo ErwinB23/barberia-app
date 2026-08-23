@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { TextInput } from 'react-native';
 
 import { getAuthErrorMessage } from '@/features/auth/auth-errors';
 import {
@@ -23,6 +24,7 @@ export function ResetPasswordScreen() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const passwordConfirmationInputRef = useRef<TextInput>(null);
 
   const clearFieldError = (field: keyof NewPasswordFormErrors) => {
     setErrors((current) => ({ ...current, [field]: undefined }));
@@ -52,8 +54,9 @@ export function ResetPasswordScreen() {
   if (isComplete) {
     return (
       <AuthScreen
-        description="Ya puedes continuar usando tu cuenta con la nueva contraseña."
+        description="Ya puedes continuar con tu cuenta de forma segura."
         title="Contraseña actualizada"
+        variant="status"
       >
         <StatusMessage message={PASSWORD_RESET_SUCCESS_MESSAGE} tone="success" />
         <ActionButton
@@ -66,56 +69,59 @@ export function ResetPasswordScreen() {
 
   return (
     <AuthScreen
-      description="Elige una contraseña nueva para recuperar el acceso a tu cuenta."
+      description="Elige una contraseña nueva y confírmala para recuperar el acceso."
       title="Nueva contraseña"
     >
       {!session ? (
-        <StatusMessage message="El enlace no es válido o ha vencido. Solicita uno nuevo." />
-      ) : null}
-      {requestError ? <StatusMessage message={requestError} /> : null}
-      <AuthFormField
-        autoCapitalize="none"
-        autoComplete="new-password"
-        editable={Boolean(session) && !isSubmitting}
-        error={errors.password}
-        label="Nueva contraseña"
-        onChangeText={(value) => {
-          setPassword(value);
-          clearFieldError('password');
-        }}
-        secureTextEntry
-        textContentType="newPassword"
-        value={password}
-      />
-      <AuthFormField
-        autoCapitalize="none"
-        autoComplete="new-password"
-        editable={Boolean(session) && !isSubmitting}
-        error={errors.passwordConfirmation}
-        label="Confirmar contraseña"
-        onChangeText={(value) => {
-          setPasswordConfirmation(value);
-          clearFieldError('passwordConfirmation');
-        }}
-        onSubmitEditing={() => void submit()}
-        returnKeyType="done"
-        secureTextEntry
-        textContentType="newPassword"
-        value={passwordConfirmation}
-      />
-      <ActionButton
-        disabled={!session}
-        isLoading={isSubmitting}
-        label="Guardar contraseña"
-        onPress={() => void submit()}
-      />
-      {!session ? (
-        <AuthFooter
-          href="../../forgot-password"
-          label="Solicitar otro enlace"
-          prompt="¿Necesitas empezar de nuevo?"
-        />
-      ) : null}
+        <>
+          <StatusMessage message="El enlace no es válido o ha vencido. Solicita uno nuevo." />
+          <AuthFooter href="../../forgot-password" label="Solicitar otro enlace" />
+        </>
+      ) : (
+        <>
+          {requestError ? <StatusMessage message={requestError} /> : null}
+          <AuthFormField
+            autoCapitalize="none"
+            autoComplete="new-password"
+            blurOnSubmit={false}
+            editable={!isSubmitting}
+            error={errors.password}
+            helperText="Mínimo 8 caracteres."
+            label="Nueva contraseña"
+            onChangeText={(value) => {
+              setPassword(value);
+              clearFieldError('password');
+            }}
+            onSubmitEditing={() => passwordConfirmationInputRef.current?.focus()}
+            returnKeyType="next"
+            secureTextEntry
+            textContentType="newPassword"
+            value={password}
+          />
+          <AuthFormField
+            autoCapitalize="none"
+            autoComplete="new-password"
+            editable={!isSubmitting}
+            error={errors.passwordConfirmation}
+            inputRef={passwordConfirmationInputRef}
+            label="Confirmar contraseña"
+            onChangeText={(value) => {
+              setPasswordConfirmation(value);
+              clearFieldError('passwordConfirmation');
+            }}
+            onSubmitEditing={() => void submit()}
+            returnKeyType="done"
+            secureTextEntry
+            textContentType="newPassword"
+            value={passwordConfirmation}
+          />
+          <ActionButton
+            isLoading={isSubmitting}
+            label="Actualizar contraseña"
+            onPress={() => void submit()}
+          />
+        </>
+      )}
     </AuthScreen>
   );
 }

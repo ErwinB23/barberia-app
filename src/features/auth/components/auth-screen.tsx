@@ -6,25 +6,32 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScreenHeading } from '@/shared/components/ui/screen-heading';
 import { SurfaceCard } from '@/shared/components/ui/surface-card';
 import { ThemedText } from '@/shared/components/ui/themed-text';
 import { ThemedView } from '@/shared/components/ui/themed-view';
 import { useTheme } from '@/theme/hooks/use-theme';
 import { Spacing } from '@/theme/spacing';
-import { Layout, Radius, TypeScale } from '@/theme/tokens';
+import { Layout, TypeScale } from '@/theme/tokens';
 
 type AuthScreenProps = PropsWithChildren<{
   title: string;
   description: string;
+  variant?: 'form' | 'status';
 }>;
 
-export function AuthScreen({ title, description, children }: AuthScreenProps) {
+export function AuthScreen({ title, description, variant = 'form', children }: AuthScreenProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isCompact = width < Layout.compactBreakpoint;
   const isWide = width >= Layout.wideBreakpoint;
+  const isStatus = variant === 'status';
+  const bottomPadding =
+    process.env.EXPO_OS === 'android'
+      ? Math.max(Spacing.four, insets.bottom + Spacing.three)
+      : Spacing.five;
 
   return (
     <ThemedView style={styles.screen}>
@@ -34,34 +41,61 @@ export function AuthScreen({ title, description, children }: AuthScreenProps) {
         style={styles.screen}
       >
         <ScrollView
+          automaticallyAdjustKeyboardInsets
           contentContainerStyle={[
             styles.content,
             isCompact ? styles.contentCompact : null,
-            isWide ? styles.contentWide : null,
+            isWide && !isStatus ? styles.contentWide : null,
+            isStatus ? styles.statusContent : null,
+            { paddingBottom: bottomPadding },
           ]}
           contentInsetAdjustmentBehavior="automatic"
+          keyboardDismissMode={process.env.EXPO_OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={[styles.intro, isWide ? styles.introWide : null]}>
-            <View style={styles.brand}>
-              <View style={[styles.brandMark, { backgroundColor: theme.primary }]}>
-                <ThemedText style={[styles.brandInitial, { color: theme.onPrimary }]}>B</ThemedText>
-              </View>
-              <View>
-                <ThemedText style={styles.brandName}>Barbería App</ThemedText>
-                <ThemedText style={styles.brandCaption} themeColor="textSecondary">
-                  Cuidado personal, bien organizado
-                </ThemedText>
-              </View>
+          {!isStatus ? (
+            <View style={[styles.intro, isWide ? styles.introWide : null]}>
+              <ThemedText accessibilityRole="header" style={styles.brandName}>
+                Barbería{' '}
+                <ThemedText style={[styles.brandApp, { color: theme.primary }]}>App</ThemedText>
+              </ThemedText>
+              <View style={[styles.brandAccent, { backgroundColor: theme.primary }]} />
+              {isWide ? (
+                <>
+                  <ThemedText style={styles.brandPromise}>
+                    Tu barbería, tus citas, todo en un solo lugar.
+                  </ThemedText>
+                  <ThemedText style={styles.brandDescription} themeColor="textSecondary">
+                    Una experiencia clara para reservar, trabajar y administrar cada día.
+                  </ThemedText>
+                </>
+              ) : null}
             </View>
-            <ScreenHeading
-              compact={isCompact}
-              description={description}
-              eyebrow="Tu barbería, en un solo lugar"
-              title={title}
-            />
-          </View>
-          <SurfaceCard style={[styles.card, isWide ? styles.cardWide : null]}>
+          ) : null}
+          <SurfaceCard
+            elevated={isWide && !isStatus}
+            style={[
+              styles.card,
+              isWide && !isStatus ? styles.cardWide : null,
+              isCompact && !isStatus
+                ? {
+                    backgroundColor: theme.background,
+                    borderColor: 'transparent',
+                  }
+                : null,
+              isCompact && !isStatus ? styles.cardCompact : null,
+              isStatus ? styles.statusCard : null,
+              isCompact && isStatus ? styles.statusCardCompact : null,
+            ]}
+          >
+            <View style={styles.heading}>
+              <ThemedText accessibilityRole="header" style={styles.title}>
+                {title}
+              </ThemedText>
+              <ThemedText style={styles.description} themeColor="textSecondary">
+                {description}
+              </ThemedText>
+            </View>
             {children}
           </SurfaceCard>
         </ScrollView>
@@ -78,62 +112,95 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.five,
+    gap: Spacing.four,
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.five,
   },
   contentCompact: {
+    justifyContent: 'flex-start',
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
+    paddingTop: Spacing.three,
   },
   contentWide: {
     flexDirection: 'row',
-    gap: Spacing.seven,
+    gap: Spacing.six,
     maxWidth: Layout.authMaxWidth,
     width: '100%',
     alignSelf: 'center',
     paddingVertical: Spacing.six,
   },
+  statusContent: {
+    width: '100%',
+    alignSelf: 'center',
+  },
   intro: {
     width: '100%',
     maxWidth: Layout.formMaxWidth,
-    gap: Spacing.five,
+    gap: Spacing.three,
   },
   introWide: {
     flex: 1,
     maxWidth: 440,
-  },
-  brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.three,
   },
-  brandMark: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
-  },
-  brandInitial: {
+  brandName: {
+    flexShrink: 1,
     fontSize: TypeScale.title,
     fontWeight: '800',
+    letterSpacing: -0.4,
   },
-  brandName: {
+  brandApp: {
+    fontWeight: '800',
+  },
+  brandAccent: {
+    width: 40,
+    height: 3,
+    borderRadius: 2,
+  },
+  brandPromise: {
+    maxWidth: 420,
+    fontSize: TypeScale.display,
+    fontWeight: '800',
+    letterSpacing: -1,
+  },
+  brandDescription: {
+    maxWidth: 390,
     fontSize: TypeScale.body,
-    fontWeight: '700',
-  },
-  brandCaption: {
-    fontSize: TypeScale.caption,
   },
   card: {
     width: '100%',
     maxWidth: Layout.formMaxWidth,
-    gap: Spacing.three,
+    gap: Spacing.four,
     padding: Spacing.four,
   },
   cardWide: {
     flex: 1,
+    padding: Spacing.five,
+  },
+  cardCompact: {
+    borderWidth: 0,
+    padding: 0,
+  },
+  statusCard: {
+    maxWidth: 480,
+    alignSelf: 'center',
+    gap: Spacing.three,
+    padding: Spacing.five,
+  },
+  statusCardCompact: {
+    padding: Spacing.four,
+  },
+  heading: {
+    gap: Spacing.two,
+  },
+  title: {
+    fontSize: TypeScale.headline,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  description: {
+    maxWidth: 440,
+    fontSize: TypeScale.body,
   },
 });

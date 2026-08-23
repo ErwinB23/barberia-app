@@ -14,8 +14,14 @@ export function AuthLoadingScreen() {
     <ThemedView style={styles.container}>
       <SurfaceCard accessibilityLabel="Recuperando tu sesión" style={styles.card}>
         <ActivityIndicator color={theme.primary} size="large" />
-        <ThemedText style={styles.title}>Preparando tu espacio</ThemedText>
-        <ThemedText style={styles.description} themeColor="textSecondary">
+        <ThemedText accessibilityRole="header" style={styles.title}>
+          Preparando tu espacio
+        </ThemedText>
+        <ThemedText
+          accessibilityLiveRegion="polite"
+          style={styles.description}
+          themeColor="textSecondary"
+        >
           Recuperando tu sesión…
         </ThemedText>
       </SurfaceCard>

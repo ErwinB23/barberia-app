@@ -15,7 +15,10 @@ export default function AuthCallbackLayout() {
       }}
     >
       <Stack.Screen name="callback" options={{ headerShown: false }} />
-      <Stack.Screen name="reset-password" options={{ title: 'Nueva contraseña' }} />
+      <Stack.Screen
+        name="reset-password"
+        options={{ headerTitle: '', title: 'Nueva contraseña' }}
+      />
     </Stack>
   );
 }

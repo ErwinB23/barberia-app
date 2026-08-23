@@ -46,8 +46,12 @@ export function ForgotPasswordScreen() {
 
   return (
     <AuthScreen
-      description="Te enviaremos instrucciones seguras para recuperar el acceso a tu cuenta."
-      title="Olvidé mi contraseña"
+      description={
+        isSubmitted
+          ? 'El enlace puede tardar unos minutos en llegar.'
+          : 'Ingresa el correo asociado a tu cuenta y te enviaremos un enlace seguro.'
+      }
+      title={isSubmitted ? 'Revisa tu correo' : 'Recuperar contraseña'}
     >
       {isSubmitted ? (
         <StatusMessage message={RECOVERY_REQUEST_SUCCESS_MESSAGE} tone="success" />
@@ -74,7 +78,7 @@ export function ForgotPasswordScreen() {
       />
       <ActionButton
         isLoading={isSubmitting}
-        label={isSubmitted ? 'Enviar nuevamente' : 'Enviar enlace'}
+        label={isSubmitted ? 'Enviar otro enlace' : 'Enviar enlace'}
         onPress={() => void submit()}
       />
       <AuthFooter
