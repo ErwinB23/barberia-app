@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
+import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
 import { getAuthErrorMessage } from '@/features/auth/auth-errors';
 import { AuthFooter } from '@/features/auth/components/auth-footer';
@@ -17,7 +18,7 @@ import { StatusMessage } from '@/shared/components/ui/status-message';
 import { ThemedText } from '@/shared/components/ui/themed-text';
 import { useTheme } from '@/theme/hooks/use-theme';
 import { Spacing } from '@/theme/spacing';
-import { TypeScale } from '@/theme/tokens';
+import { Motion, Radius, TypeScale } from '@/theme/tokens';
 
 export function LoginScreen() {
   const theme = useTheme();
@@ -29,6 +30,7 @@ export function LoginScreen() {
   const [oauthNotice, setOauthNotice] = useState<string | null>(null);
   const [activeSubmission, setActiveSubmission] = useState<LoginSubmission>(null);
   const activeSubmissionRef = useRef<LoginSubmission>(null);
+  const passwordInputRef = useRef<TextInput>(null);
   const { isBusy, isGoogleLoading, isPasswordLoading } = getLoginSubmissionState(activeSubmission);
 
   const beginSubmission = (submission: Exclude<LoginSubmission, null>) => {
@@ -88,7 +90,7 @@ export function LoginScreen() {
       const result = await signInWithGoogle();
 
       if (result === 'cancelled') {
-        setOauthNotice('El acceso con Google fue cancelado.');
+        setOauthNotice('No se completó el acceso con Google.');
       }
     } catch (error) {
       setRequestError(getAuthErrorMessage(error));
@@ -101,87 +103,106 @@ export function LoginScreen() {
 
   return (
     <AuthScreen
-      description="Accede para administrar tu cuenta y tus próximas experiencias en la barbería."
-      title="Bienvenido"
+      description="Inicia sesión para continuar a tu espacio."
+      title="Bienvenido de nuevo"
     >
       {visibleError ? <StatusMessage message={visibleError} /> : null}
-      {oauthNotice ? (
-        <ThemedText accessibilityLiveRegion="polite" style={styles.oauthNotice}>
-          {oauthNotice}
-        </ThemedText>
-      ) : null}
-      <AuthFormField
-        autoCapitalize="none"
-        autoComplete="email"
-        error={errors.email}
-        editable={!isBusy}
-        keyboardType="email-address"
-        label="Correo electrónico"
-        onChangeText={(value) => {
-          setEmail(value);
-          setErrors((current) => ({ ...current, email: undefined }));
-          setRequestError(null);
-        }}
-        placeholder="nombre@correo.com"
-        returnKeyType="next"
-        textContentType="emailAddress"
-        value={email}
-      />
-      <AuthFormField
-        autoCapitalize="none"
-        autoComplete="current-password"
-        error={errors.password}
-        editable={!isBusy}
-        label="Contraseña"
-        onChangeText={(value) => {
-          setPassword(value);
-          setErrors((current) => ({ ...current, password: undefined }));
-          setRequestError(null);
-        }}
-        onSubmitEditing={() => void submit()}
-        returnKeyType="done"
-        secureTextEntry
-        textContentType="password"
-        value={password}
-      />
+      <View style={styles.credentials}>
+        <View style={styles.fields}>
+          <AuthFormField
+            autoCapitalize="none"
+            autoComplete="email"
+            blurOnSubmit={false}
+            editable={!isBusy}
+            error={errors.email}
+            keyboardType="email-address"
+            label="Correo electrónico"
+            onChangeText={(value) => {
+              setEmail(value);
+              setErrors((current) => ({ ...current, email: undefined }));
+              setRequestError(null);
+            }}
+            onSubmitEditing={() => passwordInputRef.current?.focus()}
+            placeholder="nombre@correo.com"
+            returnKeyType="next"
+            textContentType="emailAddress"
+            value={email}
+          />
+          <AuthFormField
+            autoCapitalize="none"
+            autoComplete="current-password"
+            editable={!isBusy}
+            error={errors.password}
+            inputRef={passwordInputRef}
+            label="Contraseña"
+            onChangeText={(value) => {
+              setPassword(value);
+              setErrors((current) => ({ ...current, password: undefined }));
+              setRequestError(null);
+            }}
+            onSubmitEditing={() => void submit()}
+            returnKeyType="done"
+            secureTextEntry
+            textContentType="password"
+            value={password}
+          />
+        </View>
+        <AuthFooter align="end" href="./forgot-password" label="¿Olvidaste tu contraseña?" />
+      </View>
       <ActionButton
         disabled={isBusy}
         isLoading={isPasswordLoading}
         label="Iniciar sesión"
         onPress={() => void submit()}
       />
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={styles.divider}
-      >
-        <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-        <ThemedText style={styles.dividerLabel} themeColor="textSecondary">
-          o
-        </ThemedText>
-        <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+      <View style={styles.alternativeAccess}>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.divider}
+        >
+          <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+          <ThemedText style={styles.dividerLabel} themeColor="textSecondary">
+            o continúa con
+          </ThemedText>
+          <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+        </View>
+        <ActionButton
+          disabled={isBusy}
+          isLoading={isGoogleLoading}
+          label="Continuar con Google"
+          onPress={() => void submitGoogle()}
+          variant="secondary"
+        />
+        {oauthNotice ? (
+          <Animated.View
+            accessibilityLiveRegion="polite"
+            entering={FadeIn.duration(Motion.state).reduceMotion(ReduceMotion.System)}
+            style={[
+              styles.oauthNotice,
+              { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
+            ]}
+          >
+            <ThemedText style={styles.oauthNoticeText} themeColor="textSecondary">
+              {oauthNotice}
+            </ThemedText>
+          </Animated.View>
+        ) : null}
       </View>
-      <ActionButton
-        disabled={isBusy}
-        isLoading={isGoogleLoading}
-        label="Continuar con Google"
-        onPress={() => void submitGoogle()}
-        variant="secondary"
-      />
-      <AuthFooter
-        href="./forgot-password"
-        label="Recuperar contraseña"
-        prompt="¿No recuerdas tu contraseña?"
-      />
       <AuthFooter href="./register" label="Crear cuenta" prompt="¿Aún no tienes una cuenta?" />
     </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  oauthNotice: {
-    fontSize: TypeScale.label,
-    textAlign: 'center',
+  credentials: {
+    gap: Spacing.one,
+  },
+  fields: {
+    gap: Spacing.three,
+  },
+  alternativeAccess: {
+    gap: Spacing.three,
   },
   divider: {
     flexDirection: 'row',
@@ -194,5 +215,17 @@ const styles = StyleSheet.create({
   },
   dividerLabel: {
     fontSize: TypeScale.label,
+    textAlign: 'center',
+  },
+  oauthNotice: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.small,
+    borderCurve: 'continuous',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  oauthNoticeText: {
+    fontSize: TypeScale.label,
+    textAlign: 'center',
   },
 });

@@ -12,7 +12,8 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   otp_expired: 'El enlace ha vencido o ya fue utilizado. Solicita uno nuevo.',
   flow_state_expired: 'El enlace ha vencido. Solicita uno nuevo.',
   flow_state_not_found: 'El enlace no es válido o ya fue utilizado.',
-  over_email_send_rate_limit: 'Se enviaron demasiados correos. Inténtalo más tarde.',
+  over_email_send_rate_limit:
+    'Se solicitaron demasiados correos. Espera unos minutos antes de intentarlo nuevamente.',
   over_request_rate_limit: 'Se realizaron demasiados intentos. Espera un momento.',
   signup_disabled: 'El registro no está disponible en este momento.',
   session_not_found: 'La sesión del enlace no es válida. Solicita uno nuevo.',

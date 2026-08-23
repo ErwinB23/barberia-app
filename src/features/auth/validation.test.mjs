@@ -120,3 +120,10 @@ test('traduce errores conocidos sin exponer mensajes internos', () => {
     'No pudimos completar la operación. Inténtalo nuevamente.',
   );
 });
+
+test('explica el límite de correos sin mostrar el error técnico de Supabase', () => {
+  assert.equal(
+    getAuthErrorMessage({ code: 'over_email_send_rate_limit' }),
+    'Se solicitaron demasiados correos. Espera unos minutos antes de intentarlo nuevamente.',
+  );
+});

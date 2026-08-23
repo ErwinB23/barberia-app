@@ -50,6 +50,7 @@ export function ActionButton({
 
   return (
     <Pressable
+      accessibilityLabel={label}
       accessibilityRole="button"
       accessibilityState={{ busy: isLoading, disabled: isDisabled }}
       disabled={isDisabled}

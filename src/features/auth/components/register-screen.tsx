@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import { getAuthErrorMessage } from '@/features/auth/auth-errors';
 import { AuthFooter } from '@/features/auth/components/auth-footer';
@@ -28,6 +28,10 @@ export function RegisterScreen() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const phoneInputRef = useRef<TextInput>(null);
+  const emailInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const passwordConfirmationInputRef = useRef<TextInput>(null);
 
   const clearFieldError = (field: keyof RegisterFormErrors) => {
     setErrors((current) => ({ ...current, [field]: undefined }));
@@ -74,8 +78,9 @@ export function RegisterScreen() {
   if (confirmationEmail) {
     return (
       <AuthScreen
-        description="Tu cuenta fue creada y necesita confirmar el correo antes del primer acceso."
+        description="Te enviamos un enlace para confirmar tu cuenta."
         title="Revisa tu correo"
+        variant="status"
       >
         <StatusMessage
           message={`Enviamos un enlace de confirmación a ${confirmationEmail}. Después de confirmar, vuelve e inicia sesión.`}
@@ -91,18 +96,15 @@ export function RegisterScreen() {
   }
 
   return (
-    <AuthScreen
-      description="Crea tu cuenta personal. Los roles y permisos se asignarán de forma segura por barbería."
-      title="Crear cuenta"
-    >
+    <AuthScreen description="Completa tus datos para crear tu cuenta." title="Crear cuenta">
       {requestError ? <StatusMessage message={requestError} /> : null}
       <View style={styles.formSection}>
-        <ThemedText style={styles.sectionLabel} themeColor="primary">
-          DATOS PERSONALES
-        </ThemedText>
+        <ThemedText style={styles.sectionLabel}>Datos personales</ThemedText>
         <AuthFormField
           autoCapitalize="words"
           autoComplete="name"
+          blurOnSubmit={false}
+          editable={!isSubmitting}
           error={errors.fullName}
           label="Nombre completo"
           maxLength={120}
@@ -110,12 +112,17 @@ export function RegisterScreen() {
             setFullName(value);
             clearFieldError('fullName');
           }}
+          onSubmitEditing={() => phoneInputRef.current?.focus()}
+          returnKeyType="next"
           textContentType="name"
           value={fullName}
         />
         <AuthFormField
           autoComplete="tel"
+          blurOnSubmit={false}
+          editable={!isSubmitting}
           error={errors.phone}
+          inputRef={phoneInputRef}
           keyboardType="phone-pad"
           label="Teléfono"
           maxLength={30}
@@ -123,36 +130,47 @@ export function RegisterScreen() {
             setPhone(value);
             clearFieldError('phone');
           }}
+          onSubmitEditing={() => emailInputRef.current?.focus()}
+          returnKeyType="next"
           textContentType="telephoneNumber"
           value={phone}
         />
       </View>
       <View style={styles.formSection}>
-        <ThemedText style={styles.sectionLabel} themeColor="primary">
-          ACCESO
-        </ThemedText>
+        <ThemedText style={styles.sectionLabel}>Acceso</ThemedText>
         <AuthFormField
           autoCapitalize="none"
           autoComplete="email"
+          blurOnSubmit={false}
+          editable={!isSubmitting}
           error={errors.email}
+          inputRef={emailInputRef}
           keyboardType="email-address"
           label="Correo electrónico"
           onChangeText={(value) => {
             setEmail(value);
             clearFieldError('email');
           }}
+          onSubmitEditing={() => passwordInputRef.current?.focus()}
+          returnKeyType="next"
           textContentType="emailAddress"
           value={email}
         />
         <AuthFormField
           autoCapitalize="none"
           autoComplete="new-password"
+          blurOnSubmit={false}
+          editable={!isSubmitting}
           error={errors.password}
+          helperText="Mínimo 8 caracteres."
+          inputRef={passwordInputRef}
           label="Contraseña"
           onChangeText={(value) => {
             setPassword(value);
             clearFieldError('password');
           }}
+          onSubmitEditing={() => passwordConfirmationInputRef.current?.focus()}
+          returnKeyType="next"
           secureTextEntry
           textContentType="newPassword"
           value={password}
@@ -160,7 +178,9 @@ export function RegisterScreen() {
         <AuthFormField
           autoCapitalize="none"
           autoComplete="new-password"
+          editable={!isSubmitting}
           error={errors.passwordConfirmation}
+          inputRef={passwordConfirmationInputRef}
           label="Confirmar contraseña"
           onChangeText={(value) => {
             setPasswordConfirmation(value);
@@ -184,8 +204,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   sectionLabel: {
-    fontSize: TypeScale.caption,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontSize: TypeScale.body,
+    fontWeight: '700',
   },
 });
