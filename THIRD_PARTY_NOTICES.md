@@ -1,3 +1,9 @@
+# Avisos de terceros
+
+El siguiente aviso corresponde a Expo. Se conserva por separado y no define la licencia del código propio de Barbería App.
+
+## Expo
+
 The MIT License (MIT)
 
 Copyright (c) 2015-present 650 Industries, Inc. (aka Expo)

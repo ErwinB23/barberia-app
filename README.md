@@ -5,8 +5,8 @@ disponibilidad, clientes, barberos, pagos, notificaciones y administración.
 
 ## Estado actual
 
-El proyecto se encuentra en fase de cimentación arquitectónica. Las funcionalidades del negocio y
-la integración con el backend se implementarán de forma progresiva.
+La aplicación cuenta con funcionalidades para clientes, barberos y administradores, integradas con
+Supabase. Antes de publicarla, todavía deben validarse la configuración y los flujos en cada entorno.
 
 ## Stack
 
@@ -14,12 +14,12 @@ la integración con el backend se implementarán de forma progresiva.
 - React Native
 - Expo Router
 - TypeScript strict
-- Supabase como backend planificado
+- Supabase como backend
 - Android e iOS como plataformas principales
 
 ## Arquitectura
 
-El proyecto utilizará una arquitectura feature-first para mantener cada capacidad del negocio
+El proyecto utiliza una arquitectura feature-first para mantener cada capacidad del negocio
 cohesionada y permitir que la aplicación crezca sin mezclar responsabilidades.
 
 ```text
@@ -49,6 +49,13 @@ src/
 ```bash
 npm install
 ```
+
+Copia `.env.example` a `.env.local` y completa las dos variables públicas de Supabase para tu
+proyecto. `.env.local` no debe subirse a Git. La clave publicable puede estar en el cliente; nunca
+uses ahí una `service_role` ni otra clave secreta. Para el envío de invitaciones por correo, toma
+`supabase/functions/.env.example` como referencia y configura `RESEND_API_KEY` y
+`RESEND_FROM_EMAIL` únicamente en el entorno seguro de la Edge Function. No copies esos valores al
+entorno de Expo.
 
 ## Desarrollo
 
@@ -100,4 +107,6 @@ cambio terminado.
 
 ## Licencia
 
-Actualmente, el proyecto es personal y no tiene una licencia pública definida.
+El repositorio es privado y el código propio de Barbería App no tiene una licencia pública definida.
+El aviso de licencia de Expo se conserva en `THIRD_PARTY_NOTICES.md` y no es una licencia general
+para esta aplicación.
